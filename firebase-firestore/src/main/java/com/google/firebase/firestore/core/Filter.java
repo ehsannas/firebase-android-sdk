@@ -14,11 +14,12 @@
 
 package com.google.firebase.firestore.core;
 
+import com.google.firebase.firestore.QueryConstraint;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.FieldPath;
 
 /** Interface used for all query filters. */
-public abstract class Filter {
+public abstract class Filter extends QueryConstraint {
   public enum Operator {
     LESS_THAN("<"),
     LESS_THAN_OR_EQUAL("<="),

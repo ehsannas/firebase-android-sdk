@@ -27,7 +27,9 @@ import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.FirebaseFirestoreException.Code;
 import com.google.firebase.firestore.core.ActivityScope;
 import com.google.firebase.firestore.core.AsyncEventListener;
+import com.google.firebase.firestore.core.BasicFilter;
 import com.google.firebase.firestore.core.Bound;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.Filter;
@@ -79,6 +81,18 @@ public class Query {
   @NonNull
   public FirebaseFirestore getFirestore() {
     return firestore;
+  }
+
+  @NonNull
+  public Query where(@NonNull QueryConstraint filter) {
+    if(filter instanceof CompositeFilter) {
+      // Iterate over each filter in the filters list. Apply conjunction or disjunctions.
+      return new Query(null, null);
+    }
+
+    // For basic filters, do the old thing.
+    final BasicFilter fieldFilter = (BasicFilter) filter;
+    return whereHelper(fieldFilter.getFieldPath(), fieldFilter.getOperator(), fieldFilter.getValue());
   }
 
   /**
