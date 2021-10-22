@@ -32,8 +32,7 @@ import com.google.firebase.firestore.core.Bound;
 import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.core.FieldFilter;
-import com.google.firebase.firestore.core.Filter;
-import com.google.firebase.firestore.core.Filter.Operator;
+import com.google.firebase.firestore.Filter.Operator;
 import com.google.firebase.firestore.core.ListenerRegistrationImpl;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.QueryListener;
@@ -84,7 +83,7 @@ public class Query {
   }
 
   @NonNull
-  public Query where(@NonNull QueryConstraint filter) {
+  public Query where(@NonNull Filter filter) {
     if(filter instanceof CompositeFilter) {
       // Iterate over each filter in the filters list. Apply conjunction or disjunctions.
       return new Query(null, null);
@@ -441,7 +440,7 @@ public class Query {
               .getUserDataReader()
               .parseQueryValue(value, op == Operator.IN || op == Operator.NOT_IN);
     }
-    Filter filter = FieldFilter.create(fieldPath.getInternalPath(), op, fieldValue);
+    com.google.firebase.firestore.core.Filter filter = FieldFilter.create(fieldPath.getInternalPath(), op, fieldValue);
     validateNewFilter(filter);
     return new Query(query.filter(filter), firestore);
   }
@@ -562,7 +561,7 @@ public class Query {
     }
   }
 
-  private void validateNewFilter(Filter filter) {
+  private void validateNewFilter(com.google.firebase.firestore.core.Filter filter) {
     if (filter instanceof FieldFilter) {
       FieldFilter fieldFilter = (FieldFilter) filter;
       Operator filterOp = fieldFilter.getOperator();
