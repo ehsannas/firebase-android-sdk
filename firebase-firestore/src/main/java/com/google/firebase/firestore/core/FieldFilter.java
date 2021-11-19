@@ -24,7 +24,7 @@ import com.google.firebase.firestore.util.Assert;
 import com.google.firestore.v1.Value;
 import java.util.Arrays;
 
-/** Represents a filter to be applied to query. */
+/** Represents a single-field filter to be applied to query. */
 public class FieldFilter extends Filter {
   public enum Operator {
     LESS_THAN("<"),

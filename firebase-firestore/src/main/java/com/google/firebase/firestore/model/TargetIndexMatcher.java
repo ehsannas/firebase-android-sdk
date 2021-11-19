@@ -97,17 +97,18 @@ public class TargetIndexMatcher {
     equalityFilters = new ArrayList<>();
 
     // TODO(ehsann): This should iterate over a flattened list of filters.
-//    for (Filter filter : target.getFilters()) {
-//      FieldFilter fieldFilter = (FieldFilter) filter;
-//      if (fieldFilter.isInequality()) {
-//        hardAssert(
-//            inequalityFilter == null || inequalityFilter.getField().equals(fieldFilter.getField()),
-//            "Only a single inequality is supported");
-//        inequalityFilter = fieldFilter;
-//      } else {
-//        equalityFilters.add(fieldFilter);
-//      }
-//    }
+    //    for (Filter filter : target.getFilters()) {
+    //      FieldFilter fieldFilter = (FieldFilter) filter;
+    //      if (fieldFilter.isInequality()) {
+    //        hardAssert(
+    //            inequalityFilter == null ||
+    // inequalityFilter.getField().equals(fieldFilter.getField()),
+    //            "Only a single inequality is supported");
+    //        inequalityFilter = fieldFilter;
+    //      } else {
+    //        equalityFilters.add(fieldFilter);
+    //      }
+    //    }
   }
 
   /**

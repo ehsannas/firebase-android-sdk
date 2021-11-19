@@ -23,11 +23,8 @@ import static java.lang.Math.max;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.Filter;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.Bound;
-import com.google.firebase.firestore.core.FieldFilter;
-import com.google.firebase.firestore.core.FieldFilter.Operator;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.index.DirectionalIndexByteEncoder;
 import com.google.firebase.firestore.index.FirestoreIndexValueWriter;
@@ -652,12 +649,12 @@ final class SQLiteIndexManager implements IndexManager {
 
   private boolean isInFilter(Target target, FieldPath fieldPath) {
     // TODO(ehsann): Should this be iterating over a flattened list of filters?
-//    for (Filter filter : target.getFilters()) {
-//      if (filter.getField().equals(fieldPath)) {
-//        Operator operator = ((FieldFilter) filter).getOperator();
-//        return operator.equals(Operator.IN) || operator.equals(Operator.NOT_IN);
-//      }
-//    }
+    //    for (Filter filter : target.getFilters()) {
+    //      if (filter.getField().equals(fieldPath)) {
+    //        Operator operator = ((FieldFilter) filter).getOperator();
+    //        return operator.equals(Operator.IN) || operator.equals(Operator.NOT_IN);
+    //      }
+    //    }
     return false;
   }
 
