@@ -30,8 +30,8 @@ import com.google.firebase.firestore.core.AsyncEventListener;
 import com.google.firebase.firestore.core.Bound;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.core.FieldFilter;
-import com.google.firebase.firestore.core.Filter;
-import com.google.firebase.firestore.core.Filter.Operator;
+import com.google.firebase.firestore.Filter;
+import com.google.firebase.firestore.core.FieldFilter.Operator;
 import com.google.firebase.firestore.core.ListenerRegistrationImpl;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.QueryListener;
@@ -554,7 +554,7 @@ public class Query {
       Operator filterOp = fieldFilter.getOperator();
       if (fieldFilter.isInequality()) {
         com.google.firebase.firestore.model.FieldPath existingInequality = query.inequalityField();
-        com.google.firebase.firestore.model.FieldPath newInequality = filter.getField();
+        com.google.firebase.firestore.model.FieldPath newInequality = fieldFilter.getField();
 
         if (existingInequality != null && !existingInequality.equals(newInequality)) {
           throw new IllegalArgumentException(

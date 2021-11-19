@@ -18,7 +18,6 @@ import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import androidx.annotation.Nullable;
 import com.google.firebase.firestore.core.FieldFilter;
-import com.google.firebase.firestore.core.Filter;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Target;
 import java.util.ArrayList;
@@ -97,17 +96,18 @@ public class TargetIndexMatcher {
     inequalityFilter = null;
     equalityFilters = new ArrayList<>();
 
-    for (Filter filter : target.getFilters()) {
-      FieldFilter fieldFilter = (FieldFilter) filter;
-      if (fieldFilter.isInequality()) {
-        hardAssert(
-            inequalityFilter == null || inequalityFilter.getField().equals(fieldFilter.getField()),
-            "Only a single inequality is supported");
-        inequalityFilter = fieldFilter;
-      } else {
-        equalityFilters.add(fieldFilter);
-      }
-    }
+    // TODO(ehsann): This should iterate over a flattened list of filters.
+//    for (Filter filter : target.getFilters()) {
+//      FieldFilter fieldFilter = (FieldFilter) filter;
+//      if (fieldFilter.isInequality()) {
+//        hardAssert(
+//            inequalityFilter == null || inequalityFilter.getField().equals(fieldFilter.getField()),
+//            "Only a single inequality is supported");
+//        inequalityFilter = fieldFilter;
+//      } else {
+//        equalityFilters.add(fieldFilter);
+//      }
+//    }
   }
 
   /**
@@ -200,8 +200,8 @@ public class TargetIndexMatcher {
       return false;
     }
     boolean isArrayOperator =
-        filter.getOperator().equals(Filter.Operator.ARRAY_CONTAINS)
-            || filter.getOperator().equals(Filter.Operator.ARRAY_CONTAINS_ANY);
+        filter.getOperator().equals(FieldFilter.Operator.ARRAY_CONTAINS)
+            || filter.getOperator().equals(FieldFilter.Operator.ARRAY_CONTAINS_ANY);
     return segment.getKind().equals(FieldIndex.Segment.Kind.CONTAINS) == isArrayOperator;
   }
 
