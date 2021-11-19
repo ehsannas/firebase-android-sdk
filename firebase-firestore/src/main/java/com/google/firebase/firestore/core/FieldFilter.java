@@ -16,6 +16,7 @@ package com.google.firebase.firestore.core;
 
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
+import com.google.firebase.firestore.Filter;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.FieldPath;
 import com.google.firebase.firestore.model.Values;
@@ -23,8 +24,32 @@ import com.google.firebase.firestore.util.Assert;
 import com.google.firestore.v1.Value;
 import java.util.Arrays;
 
-/** Represents a filter to be applied to query. */
+/** Represents a single-field filter to be applied to query. */
 public class FieldFilter extends Filter {
+  public enum Operator {
+    LESS_THAN("<"),
+    LESS_THAN_OR_EQUAL("<="),
+    EQUAL("=="),
+    NOT_EQUAL("!="),
+    GREATER_THAN(">"),
+    GREATER_THAN_OR_EQUAL(">="),
+    ARRAY_CONTAINS("array_contains"),
+    ARRAY_CONTAINS_ANY("array_contains_any"),
+    IN("in"),
+    NOT_IN("not_in");
+
+    private final String text;
+
+    Operator(String text) {
+      this.text = text;
+    }
+
+    @Override
+    public String toString() {
+      return text;
+    }
+  }
+
   private final Operator operator;
 
   private final Value value;
@@ -45,7 +70,6 @@ public class FieldFilter extends Filter {
     return operator;
   }
 
-  @Override
   public FieldPath getField() {
     return field;
   }

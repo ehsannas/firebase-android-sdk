@@ -18,6 +18,7 @@ import static com.google.firebase.firestore.model.Values.max;
 import static com.google.firebase.firestore.model.Values.min;
 
 import androidx.annotation.Nullable;
+import com.google.firebase.firestore.Filter;
 import com.google.firebase.firestore.model.DocumentKey;
 import com.google.firebase.firestore.model.FieldIndex;
 import com.google.firebase.firestore.model.ResourcePath;
@@ -96,6 +97,22 @@ public final class Target {
     return filters;
   }
 
+  /**
+   * Returns a flattened list of filters in the query. This removes all the conjunction and
+   * disjunction hierarchies of composite filters and returns a list of field filters.
+   */
+  public List<Filter> getFiltersFlattened() {
+    List<Filter> result = new ArrayList();
+    for (Filter filter : filters) {
+      if (filter instanceof FieldFilter) {
+        result.add(filter);
+      } else if (filter instanceof CompositeFilter) {
+        result.addAll(((CompositeFilter) filter).getFiltersFlattened());
+      }
+    }
+    return result;
+  }
+
   /** The maximum number of results to return. Returns -1 if there is no limit on the query. */
   public long getLimit() {
     return limit;
@@ -124,7 +141,9 @@ public final class Target {
     if (segment == null) return null;
 
     for (Filter filter : filters) {
-      if (filter.getField().equals(segment.getFieldPath())) {
+      // TODO(ehsann): This code does not support composite filters at this time.
+      if (filter instanceof FieldFilter
+          && ((FieldFilter) filter).getField().equals(segment.getFieldPath())) {
         FieldFilter fieldFilter = (FieldFilter) filter;
         switch (fieldFilter.getOperator()) {
           case ARRAY_CONTAINS_ANY:
@@ -147,7 +166,9 @@ public final class Target {
 
     for (FieldIndex.Segment segment : fieldIndex.getDirectionalSegments()) {
       for (Filter filter : filters) {
-        if (filter.getField().equals(segment.getFieldPath())) {
+        // TODO(ehsann): This code does not support composite filters at this time.
+        if (filter instanceof FieldFilter
+            && ((FieldFilter) filter).getField().equals(segment.getFieldPath())) {
           FieldFilter fieldFilter = (FieldFilter) filter;
           switch (fieldFilter.getOperator()) {
             case EQUAL:
@@ -185,7 +206,9 @@ public final class Target {
 
       // Process all filters to find a value for the current field segment
       for (Filter filter : filters) {
-        if (filter.getField().equals(segment.getFieldPath())) {
+        // TODO(ehsann): This code does not support composite filters at this time.
+        if (filter instanceof FieldFilter
+            && ((FieldFilter) filter).getField().equals(segment.getFieldPath())) {
           FieldFilter fieldFilter = (FieldFilter) filter;
           Value filterValue = null;
           boolean filterInclusive = true;
@@ -270,7 +293,9 @@ public final class Target {
 
       // Process all filters to find a value for the current field segment
       for (Filter filter : filters) {
-        if (filter.getField().equals(segment.getFieldPath())) {
+        // TODO(ehsann): This code does not support composite filters at this time.
+        if (filter instanceof FieldFilter
+            && ((FieldFilter) filter).getField().equals(segment.getFieldPath())) {
           FieldFilter fieldFilter = (FieldFilter) filter;
           Value filterValue = null;
           boolean filterInclusive = true;
