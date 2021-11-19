@@ -28,12 +28,14 @@ import com.google.firebase.firestore.FirebaseFirestoreException.Code;
 import com.google.firebase.firestore.core.ActivityScope;
 import com.google.firebase.firestore.core.AsyncEventListener;
 import com.google.firebase.firestore.core.Bound;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.EventManager.ListenOptions;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.FieldFilter.Operator;
 import com.google.firebase.firestore.core.ListenerRegistrationImpl;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.QueryListener;
+import com.google.firebase.firestore.core.UnqualifiedFieldFilter;
 import com.google.firebase.firestore.core.ViewSnapshot;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
@@ -387,21 +389,36 @@ public class Query {
     return whereHelper(fieldPath, Operator.NOT_IN, values);
   }
 
-  /**
-   * Creates and returns a new {@code Query} with the additional filter that documents must contain
-   * the specified field and the value should satisfy the relation constraint provided.
-   *
-   * @param fieldPath The field to compare
-   * @param op The operator
-   * @param value The value for comparison
-   * @return The created {@code Query}.
-   */
-  private Query whereHelper(@NonNull FieldPath fieldPath, Operator op, Object value) {
+  @NonNull
+  public Query where(@NonNull Filter... filters) {
+    // If no filters were provided, we can return the current query.
+    // TODO (ehsann): Maybe we shouldn't accept zero filters.
+    if (filters.length == 0) {
+      return this;
+    }
+
+    // We assume an implicit `AND` operation between all filters in the `where` method.
+    Filter filter =
+        qualifyFilter(
+            filters.length == 1
+                ? filters[0]
+                : new CompositeFilter(Arrays.asList(filters), /*isAnd*/ true));
+
+    hardAssert(
+        filter instanceof FieldFilter
+            || (filter instanceof CompositeFilter && ((CompositeFilter) filter).isFullyQualified()),
+        "Cannot use an unqualified filter for querying.");
+
+    return new Query(query.filter(filter), firestore);
+  }
+
+  @NonNull
+  private FieldFilter convertToFieldFilter(
+      @NonNull com.google.firebase.firestore.model.FieldPath fieldPath, Operator op, Object value) {
     checkNotNull(fieldPath, "Provided field path must not be null.");
     checkNotNull(op, "Provided op must not be null.");
     Value fieldValue;
-    com.google.firebase.firestore.model.FieldPath internalPath = fieldPath.getInternalPath();
-    if (internalPath.isKeyField()) {
+    if (fieldPath.isKeyField()) {
       if (op == Operator.ARRAY_CONTAINS || op == Operator.ARRAY_CONTAINS_ANY) {
         throw new IllegalArgumentException(
             "Invalid query. You can't perform '"
@@ -426,7 +443,47 @@ public class Query {
               .getUserDataReader()
               .parseQueryValue(value, op == Operator.IN || op == Operator.NOT_IN);
     }
-    Filter filter = FieldFilter.create(fieldPath.getInternalPath(), op, fieldValue);
+    return FieldFilter.create(fieldPath, op, fieldValue);
+  }
+
+  // Takes an unqualified field filter or composite filter, and returns a qualified one.
+  private Filter qualifyFilter(Filter filter) {
+    hardAssert(
+        filter instanceof UnqualifiedFieldFilter || filter instanceof CompositeFilter,
+        "Got a fully qualified filter in `qualifyFilter`.");
+    if (filter instanceof UnqualifiedFieldFilter) {
+      UnqualifiedFieldFilter unqualifiedFilter = (UnqualifiedFieldFilter) filter;
+      Filter qualifiedFilter =
+          convertToFieldFilter(
+              unqualifiedFilter.field, unqualifiedFilter.operator, unqualifiedFilter.value);
+      validateNewFilter(qualifiedFilter);
+      return qualifiedFilter;
+    } else if (filter instanceof CompositeFilter) {
+      CompositeFilter compositeFilter = (CompositeFilter) filter;
+      List<Filter> qualifiedFilters = new ArrayList<>();
+      for (Filter subfilter : compositeFilter.getFilters()) {
+        qualifiedFilters.add(qualifyFilter(subfilter));
+      }
+      CompositeFilter result = new CompositeFilter(qualifiedFilters, compositeFilter.isAnd());
+      // TODO: Update validateNewFilter() to accept a composite filter. and call it here.
+      return result;
+    }
+    return null;
+  }
+
+  /**
+   * Creates and returns a new {@code Query} with the additional filter that documents must contain
+   * the specified field and the value should satisfy the relation constraint provided.
+   *
+   * @param fieldPath The field to compare
+   * @param op The operator
+   * @param value The value for comparison
+   * @return The created {@code Query}.
+   */
+  private Query whereHelper(@NonNull FieldPath fieldPath, Operator op, Object value) {
+    checkNotNull(fieldPath, "Provided field path must not be null.");
+    checkNotNull(op, "Provided op must not be null.");
+    Filter filter = convertToFieldFilter(fieldPath.getInternalPath(), op, value);
     validateNewFilter(filter);
     return new Query(query.filter(filter), firestore);
   }
