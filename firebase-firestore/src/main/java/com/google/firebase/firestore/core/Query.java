@@ -135,6 +135,9 @@ public final class Query {
   /**
    * Returns true if this query does not specify any query constraints that could remove results.
    */
+  // TODO(ehsann): If we do allow composite filters with zero subfilters, then this should be
+  // updated.
+  // TODO(ehsann): How do we handle conditions that are always true? (e.g. age > 0 || age <= 0).
   public boolean matchesAllDocuments() {
     return filters.isEmpty()
         && limit == Target.NO_LIMIT
@@ -207,6 +210,12 @@ public final class Query {
         if (fieldfilter.isInequality()) {
           return fieldfilter.getField();
         }
+      } else if (filter instanceof CompositeFilter) {
+        CompositeFilter compositeFilter = (CompositeFilter) filter;
+        FieldFilter found = compositeFilter.getInequalityFilter();
+        if (found != null) {
+          return found.getField();
+        }
       }
     }
     return null;
@@ -224,6 +233,13 @@ public final class Query {
         if (operators.contains(filterOp)) {
           return filterOp;
         }
+      } else if (filter instanceof CompositeFilter) {
+        CompositeFilter compositeFilter = (CompositeFilter) filter;
+        FieldFilter fieldFilter =
+            compositeFilter.firstFieldFilterWhere(f -> operators.contains(f.getOperator()));
+        if (fieldFilter != null) {
+          return fieldFilter.getOperator();
+        }
       }
     }
     return null;
@@ -240,6 +256,11 @@ public final class Query {
     FieldPath newInequalityField = null;
     if (filter instanceof FieldFilter && ((FieldFilter) filter).isInequality()) {
       newInequalityField = ((FieldFilter) filter).getField();
+    } else if (filter instanceof CompositeFilter) {
+      FieldFilter inequalityFilter = ((CompositeFilter) filter).getInequalityFilter();
+      if (inequalityFilter != null) {
+        newInequalityField = inequalityFilter.getField();
+      }
     }
 
     FieldPath queryInequalityField = inequalityField();

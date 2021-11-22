@@ -5,6 +5,10 @@ import com.google.firebase.firestore.model.Document;
 import java.util.ArrayList;
 import java.util.List;
 
+interface FieldFilterCondition {
+  boolean check(FieldFilter field);
+}
+
 /** Represents a filter that is the conjunction or disjunction of single-field filters. */
 public class CompositeFilter extends Filter {
   // List of sub-filters, each of which might be a FieldFilter or a CompositeFilter.
@@ -49,9 +53,38 @@ public class CompositeFilter extends Filter {
     return true;
   }
 
+  /**
+   * Returns the first FieldFilter in the composite filter that satisfied the condition. Returns
+   * null if none of the FieldFilters satisfy the condition.
+   */
+  public FieldFilter firstFieldFilterWhere(FieldFilterCondition condition) {
+    for (Filter filter : filters) {
+      if (filter instanceof FieldFilter && condition.check(((FieldFilter) filter))) {
+        return (FieldFilter) filter;
+      } else if (filter instanceof CompositeFilter) {
+        FieldFilter found = ((CompositeFilter) filter).firstFieldFilterWhere(condition);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Returns the first inequality filter contained within this composite filter. Returns null if it
+   * does not contain any inequalities.
+   */
+  public FieldFilter getInequalityFilter() {
+    return firstFieldFilterWhere(f -> f.isInequality());
+  }
+
   @Override
   public boolean matches(Document doc) {
-    // TODO(ehsann): implement.
+    if (firstFieldFilterWhere(filter -> !filter.matches(doc)) == null) {
+      // We couldn't find any field filters that don't match the document.
+      return true;
+    }
     return false;
   }
 
