@@ -9,9 +9,8 @@ interface FieldFilterCondition {
   boolean check(FieldFilter field);
 }
 
-/** Represents a filter that is the conjunction or disjunction of single-field filters. */
+/** Represents a filter that is the conjunction or disjunction of other filters. */
 public class CompositeFilter extends Filter {
-  // List of sub-filters, each of which might be a FieldFilter or a CompositeFilter.
   private final List<Filter> filters;
   private final boolean isAnd;
 
@@ -28,8 +27,10 @@ public class CompositeFilter extends Filter {
     return isAnd;
   }
 
-  // Returns a flattened list of all the filters within this composite filter.
-  // For example: For `or(A, B, and(C, D, or(E, F)))`, returns [A, B, C, D, E, F].
+  /**
+   * Returns a flattened list of all the filters within this composite filter. For example: For
+   * `or(A, B, and(C, D, or(E, F)))`, returns [A, B, C, D, E, F].
+   */
   public List<Filter> getFiltersFlattened() {
     List<Filter> result = new ArrayList<>();
     for (Filter filter : filters) {
@@ -42,8 +43,10 @@ public class CompositeFilter extends Filter {
     return result;
   }
 
-  // Returns true if all the filters within this composite filter are FieldFilters.
-  // Returns false otherwise.
+  /**
+   * Returns true if the composite filter does not contain any unqualified field filters. Returns
+   * false otherwise.
+   */
   public boolean isFullyQualified() {
     for (Filter filter : getFiltersFlattened()) {
       if (!(filter instanceof FieldFilter)) {
@@ -51,6 +54,19 @@ public class CompositeFilter extends Filter {
       }
     }
     return true;
+  }
+
+  /**
+   * Returns true if this composite filter contains any other composite filter. Returns false
+   * otherwise.
+   */
+  public boolean containsCompositeFilters() {
+    for (Filter filter : filters) {
+      if (filter instanceof CompositeFilter) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

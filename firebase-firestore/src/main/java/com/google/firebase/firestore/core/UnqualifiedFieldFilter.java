@@ -16,7 +16,6 @@ public class UnqualifiedFieldFilter extends Filter {
   public UnqualifiedFieldFilter(FieldPath field, FieldFilter.Operator operator, Object value) {
     checkNotNull(field, "Provided field path must not be null.");
     checkNotNull(operator, "Provided op must not be null.");
-    checkNotNull(value, "Provided value must not be null.");
     this.field = field;
     this.operator = operator;
     this.value = value;
