@@ -17,6 +17,7 @@ package com.google.firebase.firestore.model;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import androidx.annotation.Nullable;
+import com.google.firebase.firestore.Filter;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Target;
@@ -96,19 +97,17 @@ public class TargetIndexMatcher {
     inequalityFilter = null;
     equalityFilters = new ArrayList<>();
 
-    // TODO(ehsann): This should iterate over a flattened list of filters.
-    //    for (Filter filter : target.getFilters()) {
-    //      FieldFilter fieldFilter = (FieldFilter) filter;
-    //      if (fieldFilter.isInequality()) {
-    //        hardAssert(
-    //            inequalityFilter == null ||
-    // inequalityFilter.getField().equals(fieldFilter.getField()),
-    //            "Only a single inequality is supported");
-    //        inequalityFilter = fieldFilter;
-    //      } else {
-    //        equalityFilters.add(fieldFilter);
-    //      }
-    //    }
+    for (Filter filter : target.getFiltersFlattened()) {
+      FieldFilter fieldFilter = (FieldFilter) filter;
+      if (fieldFilter.isInequality()) {
+        hardAssert(
+            inequalityFilter == null || inequalityFilter.getField().equals(fieldFilter.getField()),
+            "Only a single inequality is supported");
+        inequalityFilter = fieldFilter;
+      } else {
+        equalityFilters.add(fieldFilter);
+      }
+    }
   }
 
   /**

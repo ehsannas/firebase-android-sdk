@@ -30,11 +30,11 @@ public class CompositeFilter extends Filter {
 
   // Returns a flattened list of all the filters within this composite filter.
   // For example: For `or(A, B, and(C, D, or(E, F)))`, returns [A, B, C, D, E, F].
-  public List<Filter> getAllFlattenedFilters() {
+  public List<Filter> getFiltersFlattened() {
     List<Filter> result = new ArrayList<>();
     for (Filter filter : filters) {
       if (filter instanceof CompositeFilter) {
-        result.addAll(((CompositeFilter) filter).getAllFlattenedFilters());
+        result.addAll(((CompositeFilter) filter).getFiltersFlattened());
       } else {
         result.add(filter);
       }
@@ -42,10 +42,10 @@ public class CompositeFilter extends Filter {
     return result;
   }
 
-  // Returns true if all the filters withing this composite filter are FieldFilters.
+  // Returns true if all the filters within this composite filter are FieldFilters.
   // Returns false otherwise.
   public boolean isFullyQualified() {
-    for (Filter filter : getAllFlattenedFilters()) {
+    for (Filter filter : getFiltersFlattened()) {
       if (!(filter instanceof FieldFilter)) {
         return false;
       }
@@ -102,6 +102,16 @@ public class CompositeFilter extends Filter {
 
   @Override
   public String getCanonicalId() {
-    return "composite filter:...";
+    StringBuilder builder = new StringBuilder();
+    for (Filter filter : filters) {
+      if (builder.length() == 0) {
+        builder.append(isAnd ? "and(" : "or(");
+      } else {
+        builder.append(",");
+      }
+      builder.append(filter.getCanonicalId());
+    }
+    builder.append(")");
+    return builder.toString();
   }
 }

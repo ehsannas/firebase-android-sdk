@@ -246,6 +246,19 @@ public final class Query {
   }
 
   /**
+   * Returns true if the query contains any composite filters (AND/OR) of field filters. Returns
+   * false otherwise.
+   */
+  public boolean containsCompositeFilters() {
+    for (Filter filter : filters) {
+      if (filter instanceof CompositeFilter) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Creates a new Query with an additional filter.
    *
    * @param filter The predicate to filter by.
