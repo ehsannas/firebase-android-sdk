@@ -235,6 +235,7 @@ public class BundleSerializer {
 
   private void decodeCompositeFilter(List<Filter> result, JSONObject compositeFilter)
       throws JSONException {
+    // TODO(ehsann): Bundles should support composite filters.
     if (!compositeFilter.getString("op").equals("AND")) {
       throw new IllegalArgumentException(
           "The Android SDK only supports composite filters of type 'AND'");
