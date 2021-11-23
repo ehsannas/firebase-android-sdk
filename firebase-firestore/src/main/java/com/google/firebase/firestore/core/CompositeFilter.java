@@ -81,11 +81,23 @@ public class CompositeFilter extends Filter {
 
   @Override
   public boolean matches(Document doc) {
-    if (firstFieldFilterWhere(filter -> !filter.matches(doc)) == null) {
-      // We couldn't find any field filters that don't match the document.
+    if (isAnd) {
+      // For conjunctions, all filters must match, so return false if any filter doesn't match.
+      for (Filter filter : filters) {
+        if (!filter.matches(doc)) {
+          return false;
+        }
+      }
       return true;
+    } else {
+      // For disjunctions, at least one filter should match.
+      for (Filter filter : filters) {
+        if (filter.matches(doc)) {
+          return true;
+        }
+      }
+      return false;
     }
-    return false;
   }
 
   @Override
