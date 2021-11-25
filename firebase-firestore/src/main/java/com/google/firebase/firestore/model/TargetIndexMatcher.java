@@ -18,6 +18,7 @@ import static com.google.firebase.firestore.util.Assert.hardAssert;
 
 import androidx.annotation.Nullable;
 import com.google.firebase.firestore.Filter;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Target;
@@ -28,8 +29,11 @@ import java.util.List;
 /**
  * A light query planner for Firestore.
  *
- * <p>This class matches a {@link FieldIndex} against a Firestore Query {@link Target}. It
- * determines whether a given index can be used to serve the specified target.
+ * <p>This class matches a {@link FieldIndex} against a Firestore Query {@link Target}'s conjunction
+ * filter. A query target has zero or more AND filters, and when a query target's condition contains
+ * disjunctions, the {@link Target} class normalizes the condition to a disjunction of conjunctions
+ * (OR of AND filters). This class can determine whether a given index can be used to serve one of
+ * the said AND filters.
  *
  * <p>The following table showcases some possible index configurations:
  *
@@ -88,7 +92,7 @@ public class TargetIndexMatcher {
   private final List<FieldFilter> equalityFilters;
   private final List<OrderBy> orderBys;
 
-  public TargetIndexMatcher(Target target) {
+  public TargetIndexMatcher(Target target, @Nullable CompositeFilter andFilter) {
     collectionId =
         target.getCollectionGroup() != null
             ? target.getCollectionGroup()
@@ -97,15 +101,19 @@ public class TargetIndexMatcher {
     inequalityFilter = null;
     equalityFilters = new ArrayList<>();
 
-    for (Filter filter : target.getFiltersFlattened()) {
-      FieldFilter fieldFilter = (FieldFilter) filter;
-      if (fieldFilter.isInequality()) {
-        hardAssert(
-            inequalityFilter == null || inequalityFilter.getField().equals(fieldFilter.getField()),
-            "Only a single inequality is supported");
-        inequalityFilter = fieldFilter;
-      } else {
-        equalityFilters.add(fieldFilter);
+    if (andFilter != null) {
+      assert (andFilter.isFlatAndFilter());
+      for (Filter filter : andFilter.getFilters()) {
+        FieldFilter fieldFilter = (FieldFilter) filter;
+        if (fieldFilter.isInequality()) {
+          hardAssert(
+              inequalityFilter == null
+                  || inequalityFilter.getField().equals(fieldFilter.getField()),
+              "Only a single inequality is supported");
+          inequalityFilter = fieldFilter;
+        } else {
+          equalityFilters.add(fieldFilter);
+        }
       }
     }
   }

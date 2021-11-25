@@ -15,6 +15,7 @@
 package com.google.firebase.firestore.local;
 
 import static com.google.common.truth.Truth.assertWithMessage;
+import static com.google.firebase.firestore.testutil.TestUtil.andFilter;
 import static com.google.firebase.firestore.testutil.TestUtil.bound;
 import static com.google.firebase.firestore.testutil.TestUtil.doc;
 import static com.google.firebase.firestore.testutil.TestUtil.fieldIndex;
@@ -30,6 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.firebase.Timestamp;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.model.DocumentKey;
@@ -238,8 +240,9 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
   @Test
   public void testNoMatchingFilter() {
     setUpSingleValueFilter();
-    Query query = query("coll").filter(filter("unknown", "==", true));
-    assertNull(indexManager.getFieldIndex(query.toTarget()));
+    CompositeFilter filter = andFilter(filter("unknown", "==", true));
+    Query query = query("coll").filter(filter);
+    assertNull(indexManager.getFieldIndex(query.toTarget(), filter));
   }
 
   @Test
@@ -664,10 +667,21 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
 
   private void verifyResults(Query query, String... documents) {
     Target target = query.toTarget();
-    FieldIndex fieldIndex = indexManager.getFieldIndex(target);
-    Iterable<DocumentKey> results = indexManager.getDocumentsMatchingTarget(fieldIndex, target);
     List<DocumentKey> keys = Arrays.stream(documents).map(s -> key(s)).collect(Collectors.toList());
-    assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
+
+    if (target.getDnf().size() == 0) {
+      FieldIndex fieldIndex = indexManager.getFieldIndex(target, null);
+      Iterable<DocumentKey> results =
+          indexManager.getDocumentsMatchingTarget(fieldIndex, target, null);
+      assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
+    } else {
+      List<DocumentKey> results = new ArrayList<>();
+      for (CompositeFilter filter : target.getDnf()) {
+        FieldIndex fieldIndex = indexManager.getFieldIndex(target, filter);
+        results.addAll(indexManager.getDocumentsMatchingTarget(fieldIndex, target, filter));
+      }
+      assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
+    }
   }
 
   public static List<String> getCollectionGroupsOrderByUpdateTime(SQLitePersistence persistence) {

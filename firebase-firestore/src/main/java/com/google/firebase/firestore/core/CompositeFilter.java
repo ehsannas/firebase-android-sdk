@@ -57,6 +57,14 @@ public class CompositeFilter extends Filter {
   }
 
   /**
+   * Returns true if this is an AND filter and all the filters in this composite filter are
+   * FieldFilters (i.e. it does not contain any other composite filters).
+   */
+  public boolean isFlatAndFilter() {
+    return isAnd && !containsCompositeFilters();
+  }
+
+  /**
    * Returns true if this composite filter contains any other composite filter. Returns false
    * otherwise.
    */

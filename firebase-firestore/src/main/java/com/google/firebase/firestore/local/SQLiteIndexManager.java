@@ -26,6 +26,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.Filter;
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.Bound;
+import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.FieldFilter.Operator;
 import com.google.firebase.firestore.core.Target;
@@ -384,30 +385,35 @@ final class SQLiteIndexManager implements IndexManager {
   }
 
   @Override
-  public Set<DocumentKey> getDocumentsMatchingTarget(FieldIndex fieldIndex, Target target) {
+  public Set<DocumentKey> getDocumentsMatchingTarget(
+      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter) {
     hardAssert(started, "IndexManager not started");
+    hardAssert(
+        andFilter == null || andFilter.isFlatAndFilter(),
+        "Found disjunction filter when looking for documents");
 
-    @Nullable List<Value> arrayValues = target.getArrayValues(fieldIndex);
-    @Nullable List<Value> notInValues = target.getNotInValues(fieldIndex);
-    @Nullable Bound lowerBound = target.getLowerBound(fieldIndex);
-    @Nullable Bound upperBound = target.getUpperBound(fieldIndex);
+    @Nullable List<Value> arrayValues = target.getArrayValues(fieldIndex, andFilter);
+    @Nullable List<Value> notInValues = target.getNotInValues(fieldIndex, andFilter);
+    @Nullable Bound lowerBound = target.getLowerBound(fieldIndex, andFilter);
+    @Nullable Bound upperBound = target.getUpperBound(fieldIndex, andFilter);
 
     if (Logger.isDebugEnabled()) {
       Logger.debug(
           TAG,
-          "Using index '%s' to execute '%s' (Arrays: %s, Lower bound: %s, Upper bound: %s)",
+          "Using index '%s' to execute '%s' filter '%s' (Arrays: %s, Lower bound: %s, Upper bound: %s)",
           fieldIndex,
           target,
+          andFilter,
           arrayValues,
           lowerBound,
           upperBound);
     }
 
-    Object[] lowerBoundEncoded = encodeBound(fieldIndex, target, lowerBound);
+    Object[] lowerBoundEncoded = encodeBound(fieldIndex, andFilter, lowerBound);
     String lowerBoundOp = lowerBound != null && lowerBound.isInclusive() ? ">=" : ">";
-    Object[] upperBoundEncoded = encodeBound(fieldIndex, target, upperBound);
+    Object[] upperBoundEncoded = encodeBound(fieldIndex, andFilter, upperBound);
     String upperBoundOp = upperBound != null && upperBound.isInclusive() ? "<=" : "<";
-    Object[] notInEncoded = encodeValues(fieldIndex, target, notInValues);
+    Object[] notInEncoded = encodeValues(fieldIndex, andFilter, notInValues);
 
     SQLitePersistence.Query query =
         generateQuery(
@@ -526,10 +532,13 @@ final class SQLiteIndexManager implements IndexManager {
 
   @Nullable
   @Override
-  public FieldIndex getFieldIndex(Target target) {
+  public FieldIndex getFieldIndex(Target target, @Nullable CompositeFilter andFilter) {
     hardAssert(started, "IndexManager not started");
+    hardAssert(
+        andFilter == null || andFilter.isFlatAndFilter(),
+        "Found disjunction filter when looking for field index.");
 
-    TargetIndexMatcher targetIndexMatcher = new TargetIndexMatcher(target);
+    TargetIndexMatcher targetIndexMatcher = new TargetIndexMatcher(target, andFilter);
     String collectionGroup =
         target.getCollectionGroup() != null
             ? target.getCollectionGroup()
@@ -583,11 +592,11 @@ final class SQLiteIndexManager implements IndexManager {
   }
 
   /**
-   * Encodes the given field values according to the specification in {@code target}. For IN
-   * queries, a list of possible values is returned.
+   * Encodes the given field values according to the specification in {@code target}'s given filter.
+   * For IN queries, a list of possible values is returned.
    */
   private @Nullable Object[] encodeValues(
-      FieldIndex fieldIndex, Target target, @Nullable List<Value> bound) {
+      FieldIndex fieldIndex, @Nullable CompositeFilter andFilter, @Nullable List<Value> bound) {
     if (bound == null) return null;
 
     List<IndexByteEncoder> encoders = new ArrayList<>();
@@ -597,7 +606,7 @@ final class SQLiteIndexManager implements IndexManager {
     for (FieldIndex.Segment segment : fieldIndex.getDirectionalSegments()) {
       Value value = position.next();
       for (IndexByteEncoder encoder : encoders) {
-        if (isInFilter(target, segment.getFieldPath()) && isArray(value)) {
+        if (isInFilter(segment.getFieldPath(), andFilter) && isArray(value)) {
           encoders = expandIndexValues(encoders, segment, value);
         } else {
           DirectionalIndexByteEncoder directionalEncoder = encoder.forKind(segment.getKind());
@@ -613,9 +622,9 @@ final class SQLiteIndexManager implements IndexManager {
    * list of possible values is returned.
    */
   private @Nullable Object[] encodeBound(
-      FieldIndex fieldIndex, Target target, @Nullable Bound bound) {
+      FieldIndex fieldIndex, @Nullable CompositeFilter andFilter, @Nullable Bound bound) {
     if (bound == null) return null;
-    return encodeValues(fieldIndex, target, bound.getPosition());
+    return encodeValues(fieldIndex, andFilter, bound.getPosition());
   }
 
   /** Returns the byte representation for all encoders. */
@@ -650,9 +659,9 @@ final class SQLiteIndexManager implements IndexManager {
     return results;
   }
 
-  private boolean isInFilter(Target target, FieldPath fieldPath) {
-    // TODO(ehsann): This code does not support composite filters at this time.
-    for (Filter filter : target.getFilters()) {
+  private boolean isInFilter(FieldPath fieldPath, @Nullable CompositeFilter andFilter) {
+    if (andFilter == null) return false;
+    for (Filter filter : andFilter.getFilters()) {
       if (filter instanceof FieldFilter && ((FieldFilter) filter).getField().equals(fieldPath)) {
         Operator operator = ((FieldFilter) filter).getOperator();
         return operator.equals(Operator.IN) || operator.equals(Operator.NOT_IN);
