@@ -178,14 +178,17 @@ public class IndexBackfillerTest {
     assertEquals(2, results.getDocumentsProcessed());
 
     FieldIndex persistedIndex = indexManager.getFieldIndex(target, null);
-    Set<DocumentKey> keys = indexManager.getDocumentsMatchingTarget(persistedIndex, target, null);
+    Set<DocumentKey> keys =
+        indexManager.getDocumentsMatchingTarget(persistedIndex, target, target.getLimit(), null);
     assertThat(keys).contains(key("coll1/docA"));
     assertThat(keys).contains(key("coll1/docB"));
 
     results = backfiller.backfill();
     assertEquals(1, results.getDocumentsProcessed());
 
-    keys = indexManager.getDocumentsMatchingTarget(persistedIndex, query("coll1").toTarget(), null);
+    Target target2 = query("coll1").toTarget();
+    keys =
+        indexManager.getDocumentsMatchingTarget(persistedIndex, target2, target2.getLimit(), null);
     assertThat(keys).contains(key("coll1/docA"));
     assertThat(keys).contains(key("coll1/docB"));
     assertThat(keys).contains(key("coll1/docC"));

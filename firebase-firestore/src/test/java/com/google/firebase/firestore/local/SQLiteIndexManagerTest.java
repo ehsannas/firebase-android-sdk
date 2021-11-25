@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -672,13 +673,17 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
     if (target.getDnf().size() == 0) {
       FieldIndex fieldIndex = indexManager.getFieldIndex(target, null);
       Iterable<DocumentKey> results =
-          indexManager.getDocumentsMatchingTarget(fieldIndex, target, null);
+          indexManager.getDocumentsMatchingTarget(fieldIndex, target, target.getLimit(), null);
       assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
     } else {
+      long limit = target.getLimit();
       List<DocumentKey> results = new ArrayList<>();
       for (CompositeFilter filter : target.getDnf()) {
         FieldIndex fieldIndex = indexManager.getFieldIndex(target, filter);
-        results.addAll(indexManager.getDocumentsMatchingTarget(fieldIndex, target, filter));
+        Set<DocumentKey> result =
+            indexManager.getDocumentsMatchingTarget(fieldIndex, target, limit, filter);
+        results.addAll(result);
+        limit -= result.size();
       }
       assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
     }

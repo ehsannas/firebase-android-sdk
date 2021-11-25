@@ -46,10 +46,10 @@ public class TargetTest {
     Target target = query("c").toTarget();
     FieldIndex index = fieldIndex("c");
 
-    Bound lowerBound = target.getLowerBound(index, null);
+    Bound lowerBound = target.getLowerBoundForFilter(index, null);
     verifyBound(lowerBound, true);
 
-    Bound upperBound = target.getUpperBound(index, null);
+    Bound upperBound = target.getUpperBoundForFilter(index, null);
     assertNull(upperBound);
   }
 
@@ -59,10 +59,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "bar");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, true, "bar");
   }
 
@@ -72,10 +72,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.DESCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, "bar");
   }
 
@@ -85,10 +85,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, true, "bar");
   }
 
@@ -98,10 +98,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, false, "bar");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob());
   }
 
@@ -111,10 +111,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.DESCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "bar");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob());
   }
 
@@ -124,13 +124,13 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.CONTAINS);
 
-    List<Value> arrayValues = target.getArrayValues(index, filter);
+    List<Value> arrayValues = target.getArrayValuesForFilter(index, filter);
     assertThat(arrayValues).containsExactly(wrap("bar"));
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true);
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     assertNull(upperBound);
   }
 
@@ -141,13 +141,13 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.CONTAINS);
 
-    List<Value> arrayValues = target.getArrayValues(index, filter);
+    List<Value> arrayValues = target.getArrayValuesForFilter(index, filter);
     assertThat(arrayValues).containsExactly(wrap("bar"), wrap("baz"));
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true);
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     assertNull(upperBound);
   }
 
@@ -156,10 +156,10 @@ public class TargetTest {
     Target target = query("c").orderBy(orderBy("foo")).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, null);
+    Bound lowerBound = target.getLowerBoundForFilter(index, null);
     assertNull(lowerBound);
 
-    Bound upperBound = target.getUpperBound(index, null);
+    Bound upperBound = target.getUpperBoundForFilter(index, null);
     assertNull(upperBound);
   }
 
@@ -169,10 +169,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).orderBy(orderBy("foo")).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, false, "bar");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob());
   }
 
@@ -182,10 +182,10 @@ public class TargetTest {
         query("c").orderBy(orderBy("foo")).startAt(bound(/* inclusive= */ true, "bar")).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, null);
+    Bound lowerBound = target.getLowerBoundForFilter(index, null);
     verifyBound(lowerBound, true, "bar");
 
-    Bound upperBound = target.getUpperBound(index, null);
+    Bound upperBound = target.getUpperBoundForFilter(index, null);
     assertNull(upperBound);
   }
 
@@ -204,10 +204,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "a1", "b1");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob(), "b1");
   }
 
@@ -225,10 +225,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, false, "a2", "b1");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob(), "b1");
   }
 
@@ -246,10 +246,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "a2", "b2");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, blob(), "b2");
   }
 
@@ -259,10 +259,10 @@ public class TargetTest {
         query("c").orderBy(orderBy("foo")).endAt(bound(/* inclusive= */ true, "bar")).toTarget();
     FieldIndex index = fieldIndex("c", "foo", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, null);
+    Bound lowerBound = target.getLowerBoundForFilter(index, null);
     assertNull(lowerBound);
 
-    Bound upperBound = target.getUpperBound(index, null);
+    Bound upperBound = target.getUpperBoundForFilter(index, null);
     verifyBound(upperBound, true, "bar");
   }
 
@@ -281,10 +281,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "", "b2");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, true, "a1", "b1");
   }
 
@@ -302,10 +302,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "", "b2");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, false, "a1", "b1");
   }
 
@@ -323,10 +323,10 @@ public class TargetTest {
         fieldIndex(
             "c", "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "", "b1");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, true, "a1", "b1");
   }
 
@@ -336,10 +336,10 @@ public class TargetTest {
     Target target = query("c").filter(filter).toTarget();
     FieldIndex index = fieldIndex("c", "a", FieldIndex.Segment.Kind.ASCENDING);
 
-    Bound lowerBound = target.getLowerBound(index, filter);
+    Bound lowerBound = target.getLowerBoundForFilter(index, filter);
     verifyBound(lowerBound, true, "a");
 
-    Bound upperBound = target.getUpperBound(index, filter);
+    Bound upperBound = target.getUpperBoundForFilter(index, filter);
     verifyBound(upperBound, true, "a");
   }
 

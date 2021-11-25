@@ -95,13 +95,14 @@ public interface IndexManager {
    * index.
    *
    * @param target The target for which we are looking for documents.
+   * @param limit The maximum number of documents that should be returned.
    * @param andFilter The AND filter within the target's constraints for which we're looking for
    *     documents. This can be null if the target has no filters.
    * @return The documents that match the given target's conjunction filter based on the provided
    *     index.
    */
   Set<DocumentKey> getDocumentsMatchingTarget(
-      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter);
+      FieldIndex fieldIndex, Target target, long limit, @Nullable CompositeFilter andFilter);
 
   /** Returns the next collection group to update. */
   @Nullable

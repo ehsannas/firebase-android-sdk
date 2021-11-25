@@ -79,17 +79,19 @@ public class IndexedQueryEngine implements QueryEngine {
 
     if (target.getDnf().size() == 0) {
       // There are no filters.
-      return performCollectionQueryForFilter(query, target, null);
+      return performCollectionQueryForFilterWithLimit(query, target, target.getLimit(), null);
     }
 
     ImmutableSortedMap<DocumentKey, Document> result =
         ImmutableSortedMap.Builder.emptyMap(DocumentKey.comparator());
+    long limit = target.getLimit();
     for (CompositeFilter andFilter : target.getDnf()) {
       // Each filter in the DNF must be an AND filter.
       hardAssert(andFilter.isAnd(), "Found an OR filter in the DNF");
       for (Map.Entry<DocumentKey, Document> entry :
-          performCollectionQueryForFilter(query, target, andFilter)) {
+          performCollectionQueryForFilterWithLimit(query, target, limit, andFilter)) {
         result = result.insert(entry.getKey(), entry.getValue());
+        limit--;
       }
     }
     return result;
@@ -99,14 +101,14 @@ public class IndexedQueryEngine implements QueryEngine {
    * Executes a sub-query using both indexes and post-filtering. It only applies the given andFilter
    * that is part of the query logic. `andFilter` can be null if the query contains no filters.
    */
-  private ImmutableSortedMap<DocumentKey, Document> performCollectionQueryForFilter(
-      Query query, Target target, @Nullable CompositeFilter andFilter) {
+  private ImmutableSortedMap<DocumentKey, Document> performCollectionQueryForFilterWithLimit(
+      Query query, Target target, long limit, @Nullable CompositeFilter andFilter) {
     FieldIndex fieldIndex = indexManager.getFieldIndex(target, andFilter);
     if (fieldIndex != null) {
       // If there is an index, use the index to execute the query up to its last update time.
       // Results that have not yet been written to the index get merged into the result.
       Set<DocumentKey> keys =
-          indexManager.getDocumentsMatchingTarget(fieldIndex, target, andFilter);
+          indexManager.getDocumentsMatchingTarget(fieldIndex, target, limit, andFilter);
       ImmutableSortedMap<DocumentKey, Document> indexedDocuments =
           localDocuments.getDocuments(keys);
       ImmutableSortedMap<DocumentKey, Document> additionalDocuments =

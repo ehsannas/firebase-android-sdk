@@ -148,8 +148,7 @@ public final class Target {
    * Returns the values that are used in ARRAY_CONTAINS or ARRAY_CONTAINS_ANY filters in the given
    * AND filter's components. Returns {@code null} if there are no such filters.
    */
-  // getArrayValuesForFilter
-  public @Nullable List<Value> getArrayValues(
+  public @Nullable List<Value> getArrayValuesForFilter(
       FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
     if (andFilter == null) return null;
     @Nullable FieldIndex.Segment segment = fieldIndex.getArraySegment();
@@ -175,8 +174,7 @@ public final class Target {
    * Returns the list of values that are used in != or NOT_IN filters in the given AND filter's
    * components. Returns {@code null} if there are no such filters.
    */
-  // getNotInValuesForFilter
-  public @Nullable List<Value> getNotInValues(
+  public @Nullable List<Value> getNotInValuesForFilter(
       FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
     if (andFilter == null) return null;
     List<Value> values = new ArrayList<>();
@@ -211,9 +209,8 @@ public final class Target {
    * defined by {@code fieldIndex} for the given AND filter's components. Returns {@code null} if no
    * lower bound exists.
    */
-  // getLowerBoundForFilter
   @Nullable
-  public Bound getLowerBound(FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
+  public Bound getLowerBoundForFilter(FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
     List<Value> values = new ArrayList<>();
     boolean inclusive = true;
 
@@ -304,8 +301,8 @@ public final class Target {
    * index defined by {@code fieldIndex} for the given AND filter's components. Returns {@code null}
    * if no upper bound exists.
    */
-  // getUpperBoundForFilter
-  public @Nullable Bound getUpperBound(FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
+  public @Nullable Bound getUpperBoundForFilter(
+      FieldIndex fieldIndex, @Nullable CompositeFilter andFilter) {
     List<Value> values = new ArrayList<>();
     boolean inclusive = true;
 
