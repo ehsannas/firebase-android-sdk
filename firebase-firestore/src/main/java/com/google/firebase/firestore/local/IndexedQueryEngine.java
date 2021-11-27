@@ -92,7 +92,27 @@ public class IndexedQueryEngine implements QueryEngine {
         result = result.insert(entry.getKey(), entry.getValue());
       }
     }
-    return result;
+
+    // If there's no limit constraint, we can return all the results.
+    // If the DNF contained only 1 term, the SQLite query has enforced the limit, and we can return
+    // all the results.
+    if (target.getLimit() == -1 || target.getDnf().size() == 1) {
+      return result;
+    }
+
+    // If there's a limit constraint, we should perform all branches of the query (as done above),
+    // collect the results in a sorted map (as done above), and we need to limit the results here.
+    long counter = 0;
+    ImmutableSortedMap<DocumentKey, Document> limitedResult =
+        ImmutableSortedMap.Builder.emptyMap(DocumentKey.comparator());
+    for (Map.Entry<DocumentKey, Document> entry : result) {
+      if (counter == target.getLimit()) {
+        break;
+      }
+      limitedResult = limitedResult.insert(entry.getKey(), entry.getValue());
+      counter++;
+    }
+    return limitedResult;
   }
 
   /**
