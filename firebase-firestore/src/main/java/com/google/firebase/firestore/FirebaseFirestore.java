@@ -760,11 +760,11 @@ public class FirebaseFirestore {
     return client;
   }
 
-  DatabaseId getDatabaseId() {
+  public DatabaseId getDatabaseId() {
     return databaseId;
   }
 
-  UserDataReader getUserDataReader() {
+  public UserDataReader getUserDataReader() {
     return userDataReader;
   }
 

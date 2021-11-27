@@ -483,17 +483,19 @@ public class TargetIndexMatcherTest {
 
   @Test
   public void withInAndNotIn() {
-    Query q =
-        query("collId")
-            .filter(filter("a", "not-in", Arrays.asList(1, 2, 3)))
-            .filter(filter("b", "in", Arrays.asList(1, 2, 3)));
-    validateServesTarget(q, "a", FieldIndex.Segment.Kind.ASCENDING);
-    validateServesTarget(q, "b", FieldIndex.Segment.Kind.ASCENDING);
-    validateServesTarget(
-        q, "b", FieldIndex.Segment.Kind.ASCENDING, "a", FieldIndex.Segment.Kind.ASCENDING);
-    // If provided, equalities have to come first
-    validateDoesNotServeTarget(
-        q, "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
+    // TODO(ehsann): This is an invalid query. Query validation code throws an exception for this
+    // test.
+    //    Query q =
+    //        query("collId")
+    //            .filter(filter("a", "not-in", Arrays.asList(1, 2, 3)))
+    //            .filter(filter("b", "in", Arrays.asList(1, 2, 3)));
+    //    validateServesTarget(q, "a", FieldIndex.Segment.Kind.ASCENDING);
+    //    validateServesTarget(q, "b", FieldIndex.Segment.Kind.ASCENDING);
+    //    validateServesTarget(
+    //        q, "b", FieldIndex.Segment.Kind.ASCENDING, "a", FieldIndex.Segment.Kind.ASCENDING);
+    //    // If provided, equalities have to come first
+    //    validateDoesNotServeTarget(
+    //        q, "a", FieldIndex.Segment.Kind.ASCENDING, "b", FieldIndex.Segment.Kind.ASCENDING);
   }
 
   @Test

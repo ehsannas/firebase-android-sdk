@@ -1,6 +1,7 @@
 package com.google.firebase.firestore.core;
 
 import com.google.firebase.firestore.Filter;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.model.Document;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,35 +29,6 @@ public class CompositeFilter extends Filter {
   }
 
   /**
-   * Returns a flattened list of all the filters within this composite filter. For example: For
-   * `or(A, B, and(C, D, or(E, F)))`, returns [A, B, C, D, E, F].
-   */
-  public List<Filter> getFiltersFlattened() {
-    List<Filter> result = new ArrayList<>();
-    for (Filter filter : filters) {
-      if (filter instanceof CompositeFilter) {
-        result.addAll(((CompositeFilter) filter).getFiltersFlattened());
-      } else {
-        result.add(filter);
-      }
-    }
-    return result;
-  }
-
-  /**
-   * Returns true if the composite filter does not contain any unqualified field filters. Returns
-   * false otherwise.
-   */
-  public boolean isFullyQualified() {
-    for (Filter filter : getFiltersFlattened()) {
-      if (!(filter instanceof FieldFilter)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
    * Returns true if this is an AND filter and all the filters in this composite filter are
    * FieldFilters (i.e. it does not contain any other composite filters).
    */
@@ -78,8 +50,8 @@ public class CompositeFilter extends Filter {
   }
 
   /**
-   * Returns the first FieldFilter in the composite filter that satisfied the condition. Returns
-   * null if none of the FieldFilters satisfy the condition.
+   * Performs a depth-first search to find and return the first FieldFilter in the composite filter
+   * that satisfies the condition. Returns null if none of the FieldFilters satisfy the condition.
    */
   public FieldFilter firstFieldFilterWhere(FieldFilterCondition condition) {
     for (Filter filter : filters) {
@@ -101,6 +73,24 @@ public class CompositeFilter extends Filter {
    */
   public FieldFilter getInequalityFilter() {
     return firstFieldFilterWhere(f -> f.isInequality());
+  }
+
+  public CompositeFilter parseValue(Query query, FirebaseFirestore firestore) {
+    List<Filter> parsedFilters = new ArrayList<>();
+    for (Filter filter : filters) {
+      if (filter instanceof FieldFilter) {
+        parsedFilters.add(((FieldFilter) filter).parseValue(query, firestore));
+      } else if (filter instanceof CompositeFilter) {
+        parsedFilters.add(((CompositeFilter) filter).parseValue(query, firestore));
+      }
+    }
+    return new CompositeFilter(parsedFilters, isAnd);
+  }
+
+  @Override
+  public Query apply(Query query, FirebaseFirestore firestore) {
+    parseValue(query, firestore);
+    return query.filter(this);
   }
 
   @Override

@@ -109,22 +109,6 @@ public final class Target {
     return dnf;
   }
 
-  /**
-   * Returns a flattened list of filters in the query. This removes all the conjunction and
-   * disjunction hierarchies of composite filters and returns a list of field filters.
-   */
-  public List<Filter> getFiltersFlattened() {
-    List<Filter> result = new ArrayList();
-    for (Filter filter : filters) {
-      if (filter instanceof FieldFilter) {
-        result.add(filter);
-      } else if (filter instanceof CompositeFilter) {
-        result.addAll(((CompositeFilter) filter).getFiltersFlattened());
-      }
-    }
-    return result;
-  }
-
   /** The maximum number of results to return. Returns -1 if there is no limit on the query. */
   public long getLimit() {
     return limit;
