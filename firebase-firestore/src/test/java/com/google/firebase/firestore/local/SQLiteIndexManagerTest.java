@@ -673,17 +673,15 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
     if (target.getDnf().size() == 0) {
       FieldIndex fieldIndex = indexManager.getFieldIndex(target, null);
       Iterable<DocumentKey> results =
-          indexManager.getDocumentsMatchingTarget(fieldIndex, target, target.getLimit(), null);
+          indexManager.getDocumentsMatchingTarget(fieldIndex, target, null);
       assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
     } else {
-      long limit = target.getLimit();
       List<DocumentKey> results = new ArrayList<>();
       for (CompositeFilter filter : target.getDnf()) {
         FieldIndex fieldIndex = indexManager.getFieldIndex(target, filter);
         Set<DocumentKey> result =
-            indexManager.getDocumentsMatchingTarget(fieldIndex, target, limit, filter);
+            indexManager.getDocumentsMatchingTarget(fieldIndex, target, filter);
         results.addAll(result);
-        limit -= result.size();
       }
       assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
     }

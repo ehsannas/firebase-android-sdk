@@ -386,7 +386,7 @@ final class SQLiteIndexManager implements IndexManager {
 
   @Override
   public Set<DocumentKey> getDocumentsMatchingTarget(
-      FieldIndex fieldIndex, Target target, long limit, @Nullable CompositeFilter andFilter) {
+      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter) {
     hardAssert(started, "IndexManager not started");
     hardAssert(
         andFilter == null || andFilter.isFlatAndFilter(),
@@ -417,14 +417,14 @@ final class SQLiteIndexManager implements IndexManager {
 
     SQLitePersistence.Query query =
         generateQuery(
+            target,
             fieldIndex.getIndexId(),
             arrayValues,
             lowerBoundEncoded,
             lowerBoundOp,
             upperBoundEncoded,
             upperBoundOp,
-            notInEncoded,
-            limit);
+            notInEncoded);
 
     Set<DocumentKey> result = new HashSet<>();
     query.forEach(
@@ -436,14 +436,14 @@ final class SQLiteIndexManager implements IndexManager {
 
   /** Returns a SQL query on 'index_entries' that unions all bounds. */
   private SQLitePersistence.Query generateQuery(
+      Target target,
       int indexId,
       @Nullable List<Value> arrayValues,
       @Nullable Object[] lowerBounds,
       String lowerBoundOp,
       @Nullable Object[] upperBounds,
       String upperBoundOp,
-      @Nullable Object[] notIn,
-      long limit) {
+      @Nullable Object[] notIn) {
     // The number of total statements we union together. This is similar to a distributed normal
     // form, but adapted for array values. We create a single statement per value in an
     // ARRAY_CONTAINS or ARRAY_CONTAINS_ANY filter combined with the values from the query bounds.
@@ -472,8 +472,8 @@ final class SQLiteIndexManager implements IndexManager {
     // ordering and a limit clause.
     StringBuilder sql = repeatSequence(statement, statementCount, " UNION ");
     sql.append(" ORDER BY directional_value, document_name ");
-    if (limit != -1) {
-      sql.append("LIMIT ").append(limit).append(" ");
+    if (target.getLimit() != -1) {
+      sql.append("LIMIT ").append(target.getLimit()).append(" ");
     }
 
     if (notIn != null) {

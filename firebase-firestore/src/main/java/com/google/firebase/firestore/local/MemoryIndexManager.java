@@ -76,7 +76,7 @@ class MemoryIndexManager implements IndexManager {
   @Override
   @Nullable
   public Set<DocumentKey> getDocumentsMatchingTarget(
-      FieldIndex fieldIndex, Target target, long limit, @Nullable CompositeFilter andFilter) {
+      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter) {
     // Field indices are not supported with memory persistence.
     return Collections.emptySet();
   }
