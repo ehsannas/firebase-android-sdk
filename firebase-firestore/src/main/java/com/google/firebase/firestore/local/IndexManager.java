@@ -87,18 +87,22 @@ public interface IndexManager {
   @Nullable
   FieldIndex getFieldIndex(Target target, @Nullable CompositeFilter andFilter);
 
+  /** Returns whether we can serve the given target from the index. */
+  boolean canServeFromIndex(Target target);
+
+  /** Iterates over all field indexes, and returns the least recent snapshot version of them all. */
+  @Nullable
+  SnapshotVersion getLeastRecentIndexReadTime();
+
   /**
    * Returns the documents that match the given target's conjunction filter based on the provided
    * index.
    *
    * @param target The target for which we are looking for documents.
-   * @param andFilter The AND filter within the target's constraints for which we're looking for
-   *     documents. This can be null if the target has no filters.
    * @return The documents that match the given target's conjunction filter based on the provided
    *     index.
    */
-  Set<DocumentKey> getDocumentsMatchingTarget(
-      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter);
+  Set<DocumentKey> getDocumentsMatchingTarget(Target target);
 
   /** Returns the next collection group to update. Returns {@code null} if no group exists. */
   @Nullable

@@ -31,8 +31,8 @@ import static com.google.firebase.firestore.testutil.TestUtil.query;
 import static com.google.firebase.firestore.testutil.TestUtil.version;
 import static com.google.firebase.firestore.testutil.TestUtil.wrap;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.CompositeFilter;
@@ -703,20 +703,9 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
 
   private void verifyResults(Query query, String... documents) {
     Target target = query.toTarget();
+    assertTrue("Target cannot be served from index.", indexManager.canServeFromIndex(target));
+    Iterable<DocumentKey> results = indexManager.getDocumentsMatchingTarget(target);
     List<DocumentKey> keys = Arrays.stream(documents).map(s -> key(s)).collect(Collectors.toList());
-    List<DocumentKey> results = new ArrayList<>();
-
-    if (target.getDnf().size() == 0) {
-      FieldIndex fieldIndex = indexManager.getFieldIndex(target, null);
-      assertNotNull("FieldIndex not found", fieldIndex);
-      results.addAll(indexManager.getDocumentsMatchingTarget(fieldIndex, target, null));
-    } else {
-      for (CompositeFilter filter : target.getDnf()) {
-        FieldIndex fieldIndex = indexManager.getFieldIndex(target, filter);
-        assertNotNull("FieldIndex not found", fieldIndex);
-        results.addAll(indexManager.getDocumentsMatchingTarget(fieldIndex, target, filter));
-      }
-    }
     assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);
   }
 }

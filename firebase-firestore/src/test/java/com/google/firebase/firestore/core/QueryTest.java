@@ -701,7 +701,9 @@ public class QueryTest {
     MutableDocument doc5 = doc("collection/5", 0, map("a", 1, "b", 1));
 
     // Two equalities: a==1 || b==1.
-    Query query1 = Query.atPath(ResourcePath.fromString("collection")).filter(orFilter(filter("a", "==", 1), filter("b", "==", 1)));
+    Query query1 =
+        Query.atPath(ResourcePath.fromString("collection"))
+            .filter(orFilter(filter("a", "==", 1), filter("b", "==", 1)));
     assertTrue(query1.matches(doc1));
     assertTrue(query1.matches(doc2));
     assertFalse(query1.matches(doc3));
@@ -709,7 +711,9 @@ public class QueryTest {
     assertTrue(query1.matches(doc5));
 
     // with one inequality: a>2 || b==1.
-    Query query2 = Query.atPath(ResourcePath.fromString("collection")).filter(orFilter(filter("a", ">", 2), filter("b", "==", 1)));
+    Query query2 =
+        Query.atPath(ResourcePath.fromString("collection"))
+            .filter(orFilter(filter("a", ">", 2), filter("b", "==", 1)));
     assertFalse(query2.matches(doc1));
     assertTrue(query2.matches(doc2));
     assertTrue(query2.matches(doc3));
@@ -717,8 +721,10 @@ public class QueryTest {
     assertTrue(query2.matches(doc5));
 
     // Already in DNF form: (a==1 && b==0) || (a==3 && b==2)
-    Query query3 = Query.atPath(ResourcePath.fromString("collection")).filter(
-            orFilter(
+    Query query3 =
+        Query.atPath(ResourcePath.fromString("collection"))
+            .filter(
+                orFilter(
                     andFilter(filter("a", "==", 1), filter("b", "==", 0)),
                     andFilter(filter("a", "==", 3), filter("b", "==", 2))));
 
@@ -729,10 +735,11 @@ public class QueryTest {
     assertFalse(query3.matches(doc5));
 
     // a==1 && (b==0 || b==3).
-    Query query4 = Query.atPath(ResourcePath.fromString("collection")).filter(
-            andFilter(
-                    filter("a", "==", 1),
-                    orFilter(filter("b", "==", 0), filter("b", "==", 3))));
+    Query query4 =
+        Query.atPath(ResourcePath.fromString("collection"))
+            .filter(
+                andFilter(
+                    filter("a", "==", 1), orFilter(filter("b", "==", 0), filter("b", "==", 3))));
 
     assertTrue(query4.matches(doc1));
     assertFalse(query4.matches(doc2));
@@ -741,8 +748,10 @@ public class QueryTest {
     assertFalse(query4.matches(doc5));
 
     // (a==2 || b==2) && (a==3 || b==3)
-    Query query5 = Query.atPath(ResourcePath.fromString("collection")).filter(
-            andFilter(
+    Query query5 =
+        Query.atPath(ResourcePath.fromString("collection"))
+            .filter(
+                andFilter(
                     orFilter(filter("a", "==", 2), filter("b", "==", 2)),
                     orFilter(filter("a", "==", 3), filter("b", "==", 3))));
 

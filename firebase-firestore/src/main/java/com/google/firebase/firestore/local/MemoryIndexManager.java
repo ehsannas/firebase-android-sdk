@@ -69,9 +69,19 @@ class MemoryIndexManager implements IndexManager {
   }
 
   @Override
+  public boolean canServeFromIndex(Target target) {
+    return false;
+  }
+
   @Nullable
-  public Set<DocumentKey> getDocumentsMatchingTarget(
-      FieldIndex fieldIndex, Target target, @Nullable CompositeFilter andFilter) {
+  @Override
+  public SnapshotVersion getLeastRecentIndexReadTime() {
+    return null;
+  }
+
+  @Override
+  @Nullable
+  public Set<DocumentKey> getDocumentsMatchingTarget(Target target) {
     // Field indices are not supported with memory persistence.
     return Collections.emptySet();
   }
