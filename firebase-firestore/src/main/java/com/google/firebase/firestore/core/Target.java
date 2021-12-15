@@ -368,6 +368,7 @@ public final class Target {
     }
 
     // Add filters.
+    // TODO(ehsann): Add special case for flat AND filters?
     builder.append("|f:");
     for (Filter filter : getFilters()) {
       builder.append(filter.getCanonicalId());
