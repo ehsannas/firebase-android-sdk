@@ -14,6 +14,9 @@
 
 package com.google.firebase.firestore;
 
+import static com.google.firebase.firestore.Filter.and;
+import static com.google.firebase.firestore.Filter.equalTo;
+import static com.google.firebase.firestore.Filter.or;
 import static com.google.firebase.firestore.testutil.IntegrationTestUtil.nullList;
 import static com.google.firebase.firestore.testutil.IntegrationTestUtil.querySnapshotToIds;
 import static com.google.firebase.firestore.testutil.IntegrationTestUtil.querySnapshotToValues;
@@ -483,6 +486,40 @@ public class QueryTest {
     querySnapshot = accum.await();
     assertFalse(querySnapshot.getMetadata().isFromCache());
 
+    listener.remove();
+  }
+
+  @Test
+  public void testOrQueriesServingFromCacheWhenOffline() {
+    Map<String, Map<String, Object>> testDocs =
+        map("a", map("foo", 1L, "bar", 2L), "b", map("foo", 1L));
+    CollectionReference collection = testCollectionWithDocs(testDocs);
+    EventAccumulator<QuerySnapshot> accum = new EventAccumulator<>();
+    ListenerRegistration listener =
+        collection
+            //            .whereEqualTo("foo", 1L)
+            //            .whereEqualTo("bar", 2L)
+            .where(and(equalTo("foo", 1L), equalTo("bar", 2L)))
+            .addSnapshotListener(MetadataChanges.INCLUDE, accum.listener());
+
+    // initial event
+    QuerySnapshot querySnapshot = accum.await();
+    //    assertEquals(singletonList(testDocs.get("a")), querySnapshotToValues(querySnapshot));
+
+    // Go offline.
+    waitFor(collection.firestore.getClient().disableNetwork());
+
+    querySnapshot = accum.await();
+    assertEquals(asList("a"), querySnapshotToIds(querySnapshot));
+
+    ListenerRegistration listener2 =
+        collection
+            .where(or(equalTo("foo", 1L), equalTo("bar", 2L)))
+            .addSnapshotListener(MetadataChanges.INCLUDE, accum.listener());
+    querySnapshot = accum.await();
+    assertEquals(asList("a", "b"), querySnapshotToIds(querySnapshot));
+
+    listener2.remove();
     listener.remove();
   }
 

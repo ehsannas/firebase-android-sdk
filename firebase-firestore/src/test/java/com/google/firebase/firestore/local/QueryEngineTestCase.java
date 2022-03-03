@@ -27,6 +27,8 @@ import static com.google.firebase.firestore.testutil.TestUtil.query;
 import static com.google.firebase.firestore.testutil.TestUtil.version;
 import static org.junit.Assert.assertEquals;
 
+import static java.util.Arrays.asList;
+
 import com.google.android.gms.common.internal.Preconditions;
 import com.google.firebase.Timestamp;
 import com.google.firebase.database.collection.ImmutableSortedMap;
@@ -47,6 +49,7 @@ import com.google.firebase.firestore.model.mutation.Mutation;
 import com.google.firebase.firestore.model.mutation.MutationBatch;
 import com.google.firebase.firestore.model.mutation.PatchMutation;
 import com.google.firebase.firestore.model.mutation.Precondition;
+import com.google.firebase.firestore.util.AsyncQueue;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -84,6 +87,7 @@ public abstract class QueryEngineTestCase {
   private MutationQueue mutationQueue;
   private DocumentOverlayCache documentOverlayCache;
   private TargetCache targetCache;
+  protected IndexBackfiller backfiller;
   protected IndexManager indexManager;
   protected QueryEngine queryEngine;
 
@@ -95,9 +99,10 @@ public abstract class QueryEngineTestCase {
 
     persistence = getPersistence();
 
-    indexManager = persistence.getIndexManager(User.UNAUTHENTICATED);
-    mutationQueue = persistence.getMutationQueue(User.UNAUTHENTICATED, indexManager);
-    documentOverlayCache = persistence.getDocumentOverlay(User.UNAUTHENTICATED);
+    User user = new User("testUser");
+    indexManager = persistence.getIndexManager(user);
+    mutationQueue = persistence.getMutationQueue(user, indexManager);
+    documentOverlayCache = persistence.getDocumentOverlay(user);
     remoteDocumentCache = persistence.getRemoteDocumentCache();
     targetCache = persistence.getTargetCache();
     queryEngine = new QueryEngine();
@@ -121,6 +126,9 @@ public abstract class QueryEngineTestCase {
           }
         };
     queryEngine.initialize(localDocuments, indexManager);
+    backfiller = new IndexBackfiller(persistence, new AsyncQueue());
+    backfiller.setIndexManager(indexManager);
+    backfiller.setLocalDocumentsView(localDocuments);
   }
 
   abstract Persistence getPersistence();
@@ -195,7 +203,7 @@ public abstract class QueryEngineTestCase {
     }
   }
 
-  private DocumentSet runQuery(Query query, SnapshotVersion lastLimboFreeSnapshotVersion) {
+  DocumentSet runQuery(Query query, SnapshotVersion lastLimboFreeSnapshotVersion) {
     Preconditions.checkNotNull(
         expectFullCollectionScan,
         "Encountered runQuery() call not wrapped in expectOptimizedCollectionQuery()/expectFullCollectionQuery()");
@@ -437,6 +445,7 @@ public abstract class QueryEngineTestCase {
     MutableDocument doc3 = doc("coll/3", 1, map("a", 3, "b", 2));
     MutableDocument doc4 = doc("coll/4", 1, map("a", 1, "b", 3));
     MutableDocument doc5 = doc("coll/5", 1, map("a", 1, "b", 1));
+    //MutableDocument doc6 = doc("coll/6", 1, map("a", 2, "array", asList(1, 2, 3)));
     addDocument(doc1, doc2, doc3, doc4, doc5);
 
     // Two equalities: a==1 || b==1.
@@ -482,5 +491,25 @@ public abstract class QueryEngineTestCase {
     DocumentSet result5 =
         expectFullCollectionScan(() -> runQuery(query5, MISSING_LAST_LIMBO_FREE_SNAPSHOT));
     assertEquals(docSet(query5.comparator(), doc3), result5);
+
+    // Test with limits: (a==1) || (b > 0) LIMIT 2
+    // (a==1) results in 3 docs (doc1, doc4, doc5) --> after limit: (doc1, doc4)
+    // (b>0)  results in 4 docs (doc2, doc3, doc4, doc5) --> after limit: (doc2, doc3)
+    // Union of the results: (doc1, doc4, doc2, doc3) --> after ORDER BY and LIMIT: (doc1, doc2)
+    Query query6 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", ">", 0))).limitToFirst(2);
+    DocumentSet result6 =
+            expectFullCollectionScan(() -> runQuery(query6, MISSING_LAST_LIMBO_FREE_SNAPSHOT));
+    assertEquals(docSet(query6.comparator(), doc1, doc2), result6);
+
+    // Test with limits: (a==1) || (b > 0) ORDER BY b LIMIT 1
+    // (a==1 order by b) results in 3 docs (doc1, doc5, doc4) --> after limit: (doc1)
+    // (b>0 order by b)  results in 4 docs (doc2, doc5, doc3, doc4) --> after limit: (doc2)
+    // Union of the results: (doc1, doc2) --> after ORDER BY and LIMIT: (doc1)
+    Query query7 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", ">", 0)))
+            .limitToFirst(1).orderBy(orderBy("b", "asc"));
+    DocumentSet result7 =
+            expectFullCollectionScan(() -> runQuery(query7, MISSING_LAST_LIMBO_FREE_SNAPSHOT));
+    assertEquals(docSet(query7.comparator(), doc1), result7);
+
   }
 }

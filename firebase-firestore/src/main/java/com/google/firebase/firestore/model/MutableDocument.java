@@ -264,16 +264,16 @@ public final class MutableDocument implements Document {
     return "Document{"
         + "key="
         + key
-        + ", version="
-        + version
-        + ", readTime="
-        + readTime
-        + ", type="
-        + documentType
-        + ", documentState="
-        + documentState
-        + ", value="
-        + value
+//        + ", version="
+//        + version
+//        + ", readTime="
+//        + readTime
+//        + ", type="
+//        + documentType
+//        + ", documentState="
+//        + documentState
+//        + ", value="
+//        + value
         + '}';
   }
 }

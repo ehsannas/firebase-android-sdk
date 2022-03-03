@@ -17,6 +17,7 @@ package com.google.firebase.firestore.local;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.firebase.firestore.model.FieldIndex.IndexState;
 import static com.google.firebase.firestore.model.FieldIndex.Segment.Kind;
+import static com.google.firebase.firestore.testutil.TestUtil.andFilters;
 import static com.google.firebase.firestore.testutil.TestUtil.bound;
 import static com.google.firebase.firestore.testutil.TestUtil.deletedDoc;
 import static com.google.firebase.firestore.testutil.TestUtil.doc;
@@ -25,6 +26,7 @@ import static com.google.firebase.firestore.testutil.TestUtil.fieldIndex;
 import static com.google.firebase.firestore.testutil.TestUtil.filter;
 import static com.google.firebase.firestore.testutil.TestUtil.key;
 import static com.google.firebase.firestore.testutil.TestUtil.map;
+import static com.google.firebase.firestore.testutil.TestUtil.orFilters;
 import static com.google.firebase.firestore.testutil.TestUtil.orderBy;
 import static com.google.firebase.firestore.testutil.TestUtil.path;
 import static com.google.firebase.firestore.testutil.TestUtil.query;
@@ -42,6 +44,7 @@ import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
 import com.google.firebase.firestore.model.FieldIndex;
 import com.google.firebase.firestore.model.FieldIndex.IndexOffset;
+import com.google.firebase.firestore.model.MutableDocument;
 import com.google.firebase.firestore.model.Values;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -476,6 +479,70 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
 
     addDocs(deletedDoc("coll/doc1", 1));
     verifyResults(query);
+  }
+
+  @Test
+  public void ehsan() {
+    indexManager.addFieldIndex(fieldIndex("coll", "a", Kind.ASCENDING));
+    indexManager.addFieldIndex(fieldIndex("coll", "b", Kind.ASCENDING));
+    MutableDocument doc1 = doc("coll/1", 1, map("a", 1, "b", 0));
+    MutableDocument doc2 = doc("coll/2", 1, map("a", 2, "b", 1));
+    MutableDocument doc3 = doc("coll/3", 1, map("a", 3, "b", 2));
+    MutableDocument doc4 = doc("coll/4", 1, map("a", 1, "b", 3));
+    MutableDocument doc5 = doc("coll/5", 1, map("a", 1, "b", 1));
+    addDocs(doc1, doc2, doc3, doc4, doc5);
+
+    // Two equalities: a==1 || b==1.
+//    Query query1 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", "==", 1)));
+//    verifyResults(query1, "coll/1", "coll/2", "coll/4", "coll/5");
+
+    // with one inequality: a>2 || b==1.
+    Query query2 = query("coll").filter(andFilters(filter("a", ">", 2), filter("b", "==", 1)));
+    verifyResults(query2, "coll/2", "coll/3", "coll/5");
+
+    /*
+    // (a==1 && b==0) || (a==3 && b==2)
+    Query query3 =
+            query("coll")
+                    .filter(
+                            orFilters(
+                                    andFilters(filter("a", "==", 1), filter("b", "==", 0)),
+                                    andFilters(filter("a", "==", 3), filter("b", "==", 2))));
+    verifyResults(query3, "coll/1", "coll/3");
+
+    // a==1 && (b==0 || b==3).
+    Query query4 =
+            query("coll")
+                    .filter(
+                            andFilters(
+                                    filter("a", "==", 1), orFilters(filter("b", "==", 0), filter("b", "==", 3))));
+    verifyResults(query4, "coll/1", "coll/4");
+
+    // (a==2 || b==2) && (a==3 || b==3)
+    Query query5 =
+            query("coll")
+                    .filter(
+                            andFilters(
+                                    orFilters(filter("a", "==", 2), filter("b", "==", 2)),
+                                    orFilters(filter("a", "==", 3), filter("b", "==", 3))));
+    verifyResults(query5, "coll/3");
+
+    // Test with limits: (a==1) || (b > 0) LIMIT 2
+    // (a==1) results in 3 docs (doc1, doc4, doc5) --> after limit: (doc1, doc4)
+    // (b>0)  results in 4 docs (doc2, doc3, doc4, doc5) --> after limit: (doc2, doc3)
+    // Union of the results: (doc1, doc4, doc2, doc3) --> after ORDER BY and LIMIT: (doc1, doc2)
+    Query query6 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", ">", 0))).limitToFirst(2);
+    verifyResults(query6, "coll/1", "coll/2");
+
+    // Test with limits: (a==1) || (b > 0) ORDER BY b LIMIT 2
+    // (a==1 order by b desc) --> (doc4, doc5, doc1) --> after limit: (doc4, doc5)
+    // (b>0  order by b desc) --> (doc4, doc3, doc2, doc5) --> after limit: (doc4, doc3)
+    // Union of the results: (doc1, doc2) --> after ORDER BY and LIMIT: (doc1)
+    //Query query7 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", ">", 0)))
+    //        .orderBy(orderBy("b", "asc"))
+    //        .limitToFirst(4);
+    //verifyResults(query7, "coll/1");
+    */
   }
 
   @Test

@@ -487,9 +487,15 @@ final class SQLiteIndexManager implements IndexManager {
     if (subQueries.size() == 1) {
       // If there's only one subQuery, just execute the one subQuery.
       queryString = subQueries.get(0);
+      queryString = queryString + " ORDER BY directional_value, document_key ";
+      if (target.getLimit() != -1) {
+        queryString = queryString + " LIMIT " + target.getLimit();
+      }
     } else {
       // Construct "SELECT * FROM (subQuery1 UNION subQuery2 UNION ...) LIMIT N"
-      queryString = "SELECT * FROM (" + TextUtils.join(" UNION ", subQueries) + ")";
+      //queryString = "SELECT * FROM (" + TextUtils.join(" UNION ", subQueries) + ")";
+      queryString = TextUtils.join(" UNION ", subQueries);
+      queryString = queryString + " ORDER BY directional_value, document_key ";
       if (target.getLimit() != -1) {
         queryString = queryString + " LIMIT " + target.getLimit();
       }
@@ -547,10 +553,10 @@ final class SQLiteIndexManager implements IndexManager {
     // Create the UNION statement by repeating the above generated statement. We can then add
     // ordering and a limit clause.
     StringBuilder sql = repeatSequence(statement, statementCount, " UNION ");
-    sql.append(" ORDER BY directional_value, document_key ");
-    if (target.getLimit() != -1) {
-      sql.append("LIMIT ").append(target.getLimit()).append(" ");
-    }
+//    sql.append(" ORDER BY directional_value, document_key ");
+//    if (target.getLimit() != -1) {
+//      sql.append("LIMIT ").append(target.getLimit()).append(" ");
+//    }
 
     if (notIn != null) {
       // Wrap the statement in a NOT-IN call.
