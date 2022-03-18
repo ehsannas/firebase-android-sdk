@@ -106,8 +106,10 @@ public final class Bound {
             DocumentKey.fromName(component.getReferenceValue()).compareTo(document.getKey());
       } else {
         Value docValue = document.getField(orderByComponent.getField());
-        hardAssert(
-            docValue != null, "Field should exist since document matched the orderBy already.");
+        // Firestore considers missing fields to be smaller than any existing field.
+        if(docValue == null) {
+          comparison = -1;
+        }
         comparison = Values.compare(component, docValue);
       }
 

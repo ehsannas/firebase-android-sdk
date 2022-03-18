@@ -26,6 +26,7 @@ import com.google.firebase.firestore.model.ResourcePath;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,9 +69,9 @@ class MemoryIndexManager implements IndexManager {
     return null;
   }
 
-  @Override
   @Nullable
-  public Set<DocumentKey> getDocumentsMatchingTarget(Target target) {
+  @Override
+  public Set<DocumentKey> getDocumentsMatchingTarget(FieldIndex index, Target target) {
     // Field indices are not supported with memory persistence.
     return null;
   }
@@ -99,8 +100,15 @@ class MemoryIndexManager implements IndexManager {
     return Collections.emptyList();
   }
 
+  /*
   @Override
   public IndexOffset getMinOffset(Target target) {
+    return IndexOffset.NONE;
+  }
+  */
+
+  @Override
+  public IndexOffset getMinOffset(List<FieldIndex> fieldIndexes) {
     return IndexOffset.NONE;
   }
 

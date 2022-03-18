@@ -184,19 +184,20 @@ public class LogicUtils {
   public static Filter applyDistribution(Filter lhs, Filter rhs) {
     assertFieldFilterOrCompositeFilter(lhs);
     assertFieldFilterOrCompositeFilter(rhs);
+    Filter result;
     if (lhs instanceof FieldFilter && rhs instanceof FieldFilter) {
-      return applyDistribution((FieldFilter) lhs, (FieldFilter) rhs);
+      result = applyDistribution((FieldFilter) lhs, (FieldFilter) rhs);
+    }  else if (lhs instanceof FieldFilter && rhs instanceof CompositeFilter) {
+      result = applyDistribution((FieldFilter) lhs, (CompositeFilter) rhs);
+    } else if (lhs instanceof CompositeFilter && rhs instanceof FieldFilter) {
+      result = applyDistribution((FieldFilter) rhs, (CompositeFilter) lhs);
+    } else {
+      result = applyDistribution((CompositeFilter) lhs, (CompositeFilter) rhs);
     }
-
-    if (lhs instanceof FieldFilter && rhs instanceof CompositeFilter) {
-      return applyDistribution((FieldFilter) lhs, (CompositeFilter) rhs);
-    }
-
-    if (lhs instanceof CompositeFilter && rhs instanceof FieldFilter) {
-      return applyDistribution((FieldFilter) rhs, (CompositeFilter) lhs);
-    }
-
-    return applyDistribution((CompositeFilter) lhs, (CompositeFilter) rhs);
+    // Since `applyDistribution` is recursive, we must apply association at the end of each
+    // distribution in order to ensure the result is as flat as possible for the next round of
+    // distributions.
+    return applyAssociation(result);
   }
 
   private static Filter applyDistribution(FieldFilter lhs, FieldFilter rhs) {
@@ -228,14 +229,6 @@ public class LogicUtils {
     hardAssert(
         lhs.getFilters().size() > 0 && rhs.getFilters().size() > 0,
         "Found an empty composite filter");
-    if (lhs.getFilters().size() == 1) {
-      return applyDistribution(lhs.getFilters().get(0), rhs);
-    }
-
-    if (rhs.getFilters().size() == 1) {
-      return applyDistribution(lhs, rhs.getFilters().get(0));
-    }
-
     // There are four cases:
     // (A & B) & (C & D) --> (A & B & C & D)
     // (A & B) & (C | D) --> (A & B & C) | (A & B & D)
@@ -256,11 +249,8 @@ public class LogicUtils {
     for (Filter subfilter : disjunctionSide.getFilters()) {
       results.add(applyDistribution(subfilter, otherSide));
     }
-    // Since `applyDistribution` is recursive, we must apply association at the end of each
-    // distribution in order to ensure the result is as flat as possible for the next round of
-    // distributions.
     // TODO(orquery): Use OPERATOR_OR.
-    return applyAssociation(new CompositeFilter(results, Operator.OPERATOR_UNSPECIFIED));
+    return new CompositeFilter(results, Operator.OPERATOR_UNSPECIFIED);
   }
 
   @VisibleForTesting

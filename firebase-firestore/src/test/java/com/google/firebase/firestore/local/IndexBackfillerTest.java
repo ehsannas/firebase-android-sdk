@@ -454,7 +454,7 @@ public class IndexBackfillerTest {
     assertEquals(1, documentsProcessed);
 
     Target target = query("coll").filter(filter("foo", "==", 2)).toTarget();
-    Set<DocumentKey> matching = indexManager.getDocumentsMatchingTarget(target);
+    Set<DocumentKey> matching = indexManager.getDocumentsMatchingTarget(indexManager.getFieldIndex(target), target);
     assertTrue(matching.isEmpty());
   }
 
@@ -510,7 +510,7 @@ public class IndexBackfillerTest {
 
   private void verifyQueryResults(Query query, String... expectedKeys) {
     Target target = query.toTarget();
-    Set<DocumentKey> actualKeys = indexManager.getDocumentsMatchingTarget(target);
+    Set<DocumentKey> actualKeys = indexManager.getDocumentsMatchingTarget(indexManager.getFieldIndex(target), target);
     if (actualKeys == null) {
       assertEquals(0, expectedKeys.length);
     } else {

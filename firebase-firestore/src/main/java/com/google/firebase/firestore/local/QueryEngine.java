@@ -19,15 +19,28 @@ import static com.google.firebase.firestore.util.Util.values;
 
 import com.google.firebase.database.collection.ImmutableSortedMap;
 import com.google.firebase.database.collection.ImmutableSortedSet;
+import com.google.firebase.firestore.core.CompositeFilter;
+import com.google.firebase.firestore.core.FieldFilter;
+import com.google.firebase.firestore.core.Filter;
+import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
+import com.google.firebase.firestore.model.DocumentSet;
 import com.google.firebase.firestore.model.FieldIndex;
 import com.google.firebase.firestore.model.FieldIndex.IndexOffset;
+import com.google.firebase.firestore.model.FieldPath;
 import com.google.firebase.firestore.model.SnapshotVersion;
 import com.google.firebase.firestore.util.Logger;
+import com.google.firebase.firestore.util.LogicUtils;
+import com.google.firestore.v1.StructuredQuery;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -73,6 +86,13 @@ public class QueryEngine {
   private IndexManager indexManager;
   private boolean initialized;
 
+  /**
+   * Maps from a target to its equivalent list of sub-targets. Each sub-target contains only one
+   * term from the target's disjunctive normal form (DNF).
+   */
+  // TODO(orquery): Find a way for the GC algorithm to remove the mapping once we remove a target.
+  private final Map<Target, List<Target>> targetToDnfSubTargets = new HashMap<>();
+
   public void initialize(LocalDocumentsView localDocumentsView, IndexManager indexManager) {
     this.localDocumentsView = localDocumentsView;
     this.indexManager = indexManager;
@@ -110,15 +130,38 @@ public class QueryEngine {
       return null;
     }
 
-    Set<DocumentKey> keys = indexManager.getDocumentsMatchingTarget(target);
-    if (keys == null) {
+    if (indexManager.getFieldIndexes().isEmpty()) {
+      // Can't serve the query from index if there are no indexes (e.g. for MemoryIndexManager).
       return null;
     }
 
-    ImmutableSortedMap<DocumentKey, Document> indexedDocuments =
-        localDocumentsView.getDocuments(keys);
-    return appendRemainingResults(
-        values(indexedDocuments), query, indexManager.getMinOffset(target));
+    DocumentSet targetResults = DocumentSet.emptySet(query.comparator());
+    List<FieldIndex> fieldIndexes = new ArrayList<>();
+
+    // Each sub-target may return as many as the query's `limit` documents. Sub-targets may also
+    // contain duplicate documents. We keep a sorted set of results (sorted by the query's
+    // comparator, which takes OrderBys into account), and we apply the limit to this set.
+    for (Target subTarget : getSubTargets(target)) {
+      FieldIndex fieldIndex = indexManager.getFieldIndex(subTarget);
+      if (fieldIndex == null) {
+        return null;
+      }
+      fieldIndexes.add(fieldIndex);
+      Set<DocumentKey> subTargetResults = indexManager.getDocumentsMatchingTarget(fieldIndex, subTarget);
+      if (subTargetResults == null) {
+        return null;
+      }
+      ImmutableSortedMap<DocumentKey, Document> indexedDocuments = localDocumentsView.getDocuments(subTargetResults);
+      for(Map.Entry<DocumentKey, Document> entry : indexedDocuments) {
+        targetResults = targetResults.add(entry.getValue());
+      }
+    }
+
+    // We should apply the limit after all matching documents from all sub-targets have been added
+    // and sorted.
+    //targetResults.limitToFirst(target.getLimit());
+
+    return appendRemainingResults(targetResults, query, indexManager.getMinOffset(fieldIndexes));
   }
 
   /**
@@ -240,5 +283,51 @@ public class QueryEngine {
       remainingResults = remainingResults.insert(entry.getKey(), entry);
     }
     return remainingResults;
+  }
+
+  private List<Target> getSubTargets(Target target) {
+    if (targetToDnfSubTargets.containsKey(target)) {
+      return targetToDnfSubTargets.get(target);
+    }
+    List<Target> subTargets = new ArrayList<>();
+    if (target.getFilters().isEmpty()) {
+      subTargets.add(target);
+    } else {
+      // There is an implicit AND operation between all the filters stored in the target.
+      List<Filter> dnf =
+              LogicUtils.DnfTransform(
+                      new CompositeFilter(
+                              target.getFilters(), StructuredQuery.CompositeFilter.Operator.AND));
+      for (Filter term : dnf) {
+        // We should remove any orderBys that do not exist in this DNF term. For instance:
+        // `(a > 1 || b == 2) orderBy a orderBy __name__` should turn into these two sub-targets:
+        // `a > 1   orderBy a orderBy __name__`
+        // `b == 2            orderBy __name__`
+        // Having `orderBy a` in the second term would incorrectly eliminate documents which do
+        // have b==2 but are missing the field `a`.
+        List<FieldPath> fields = new ArrayList<>();
+        for(Filter filter : term.getFilters()) {
+          hardAssert(filter instanceof FieldFilter, "DNF term must not contain composite filter.");
+          fields.add(((FieldFilter) filter).getField());
+        }
+        List<OrderBy> orderBys = new ArrayList<>();
+        for (OrderBy orderBy : target.getOrderBy()) {
+          if (orderBy.getField().isKeyField() || fields.contains(orderBy.getField())) {
+            orderBys.add(orderBy);
+          }
+        }
+        subTargets.add(
+                new Target(
+                        target.getPath(),
+                        target.getCollectionGroup(),
+                        term.getFilters(),
+                        orderBys,
+                        target.getLimit(),
+                        target.getStartAt(),
+                        target.getEndAt()));
+      }
+    }
+    targetToDnfSubTargets.put(target, subTargets);
+    return subTargets;
   }
 }

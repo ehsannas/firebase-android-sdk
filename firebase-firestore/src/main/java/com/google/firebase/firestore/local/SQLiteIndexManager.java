@@ -30,6 +30,7 @@ import com.google.firebase.firestore.core.Bound;
 import com.google.firebase.firestore.core.CompositeFilter;
 import com.google.firebase.firestore.core.FieldFilter;
 import com.google.firebase.firestore.core.Filter;
+import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.index.DirectionalIndexByteEncoder;
 import com.google.firebase.firestore.index.FirestoreIndexValueWriter;
@@ -37,6 +38,7 @@ import com.google.firebase.firestore.index.IndexByteEncoder;
 import com.google.firebase.firestore.index.IndexEntry;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
+import com.google.firebase.firestore.model.DocumentSet;
 import com.google.firebase.firestore.model.FieldIndex;
 import com.google.firebase.firestore.model.FieldIndex.IndexOffset;
 import com.google.firebase.firestore.model.FieldPath;
@@ -53,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -71,13 +74,6 @@ final class SQLiteIndexManager implements IndexManager {
   private final SQLitePersistence db;
   private final LocalSerializer serializer;
   private final String uid;
-
-  /**
-   * Maps from a target to its equivalent list of sub-targets. Each sub-target contains only one
-   * term from the target's disjunctive normal form (DNF).
-   */
-  // TODO(orquery): Find a way for the GC algorithm to remove the mapping once we remove a target.
-  private final Map<Target, List<Target>> targetToDnfSubTargets = new HashMap<>();
 
   /**
    * An in-memory copy of the index entries we've already written since the SDK launched. Used to
@@ -279,7 +275,7 @@ final class SQLiteIndexManager implements IndexManager {
     return allIndices;
   }
 
-  private IndexOffset getMinOffset(Collection<FieldIndex> fieldIndexes) {
+  public IndexOffset getMinOffset(List<FieldIndex> fieldIndexes) {
     hardAssert(
         !fieldIndexes.isEmpty(),
         "Found empty index group when looking for least recent index offset.");
@@ -300,11 +296,12 @@ final class SQLiteIndexManager implements IndexManager {
 
   @Override
   public IndexOffset getMinOffset(String collectionGroup) {
-    Collection<FieldIndex> fieldIndexes = getFieldIndexes(collectionGroup);
+    List<FieldIndex> fieldIndexes = new ArrayList<>(getFieldIndexes(collectionGroup));
     hardAssert(!fieldIndexes.isEmpty(), "minOffset was called for collection without indexes");
     return getMinOffset(fieldIndexes);
   }
 
+  /*
   @Override
   public IndexOffset getMinOffset(Target target) {
     List<FieldIndex> fieldIndexes = new ArrayList<>();
@@ -313,35 +310,7 @@ final class SQLiteIndexManager implements IndexManager {
     }
     return getMinOffset(fieldIndexes);
   }
-
-  private List<Target> getSubTargets(Target target) {
-    if (targetToDnfSubTargets.containsKey(target)) {
-      return targetToDnfSubTargets.get(target);
-    }
-    List<Target> subTargets = new ArrayList<>();
-    if (target.getFilters().isEmpty()) {
-      subTargets.add(target);
-    } else {
-      // There is an implicit AND operation between all the filters stored in the target.
-      List<Filter> dnf =
-          LogicUtils.DnfTransform(
-              new CompositeFilter(
-                  target.getFilters(), StructuredQuery.CompositeFilter.Operator.AND));
-      for (Filter term : dnf) {
-        subTargets.add(
-            new Target(
-                target.getPath(),
-                target.getCollectionGroup(),
-                term.getFilters(),
-                target.getOrderBy(),
-                target.getLimit(),
-                target.getStartAt(),
-                target.getEndAt()));
-      }
-    }
-    targetToDnfSubTargets.put(target, subTargets);
-    return subTargets;
-  }
+  */
 
   /**
    * Stores the index in the memoized indexes table and updates {@link #nextIndexToUpdate}, {@link
@@ -434,8 +403,9 @@ final class SQLiteIndexManager implements IndexManager {
     return results;
   }
 
+  /*
   @Override
-  public Set<DocumentKey> getDocumentsMatchingTarget(Target target) {
+  public Set<DocumentKey> getDocumentsMatchingTarget(Target target, Comparator<Document> documentComparator) {
     hardAssert(started, "IndexManager not started");
 
     List<String> subQueries = new ArrayList<>();
@@ -454,13 +424,13 @@ final class SQLiteIndexManager implements IndexManager {
 
       if (Logger.isDebugEnabled()) {
         Logger.debug(
-            TAG,
-            "Using index '%s' to execute '%s' (Arrays: %s, Lower bound: %s, Upper bound: %s)",
-            fieldIndex,
-            subTarget,
-            arrayValues,
-            lowerBound,
-            upperBound);
+                TAG,
+                "Using index '%s' to execute '%s' (Arrays: %s, Lower bound: %s, Upper bound: %s)",
+                fieldIndex,
+                subTarget,
+                arrayValues,
+                lowerBound,
+                upperBound);
       }
 
       Object[] lowerBoundEncoded = encodeBound(fieldIndex, subTarget, lowerBound);
@@ -470,15 +440,15 @@ final class SQLiteIndexManager implements IndexManager {
       Object[] notInEncoded = encodeValues(fieldIndex, subTarget, notInValues);
 
       Object[] subQueryAndBindings =
-          generateQueryAndBindings(
-              subTarget,
-              fieldIndex.getIndexId(),
-              arrayValues,
-              lowerBoundEncoded,
-              lowerBoundOp,
-              upperBoundEncoded,
-              upperBoundOp,
-              notInEncoded);
+              generateQueryAndBindings(
+                      subTarget,
+                      fieldIndex.getIndexId(),
+                      arrayValues,
+                      lowerBoundEncoded,
+                      lowerBoundOp,
+                      upperBoundEncoded,
+                      upperBoundOp,
+                      notInEncoded);
       subQueries.add(String.valueOf(subQueryAndBindings[0]));
       bindings.addAll(Arrays.asList(subQueryAndBindings).subList(1, subQueryAndBindings.length));
     }
@@ -507,16 +477,120 @@ final class SQLiteIndexManager implements IndexManager {
 
     Set<DocumentKey> result = new HashSet<>();
     query.forEach(
-        row -> result.add(DocumentKey.fromPath(ResourcePath.fromString(row.getString(0)))));
+            row -> result.add(DocumentKey.fromPath(ResourcePath.fromString(row.getString(0)))));
 
     Logger.debug(TAG, "Index scan returned %s documents", result.size());
     return result;
+  }
+   */
+
+
+  @Override
+  public Set<DocumentKey> getDocumentsMatchingTarget(FieldIndex fieldIndex, Target target) {
+    hardAssert(started, "IndexManager not started");
+
+    @Nullable List<Value> arrayValues = target.getArrayValues(fieldIndex);
+    @Nullable Collection<Value> notInValues = target.getNotInValues(fieldIndex);
+    @Nullable Bound lowerBound = target.getLowerBound(fieldIndex);
+    @Nullable Bound upperBound = target.getUpperBound(fieldIndex);
+
+    if (Logger.isDebugEnabled()) {
+      Logger.debug(
+              TAG,
+              "Using index '%s' to execute '%s' (Arrays: %s, Lower bound: %s, Upper bound: %s)",
+              fieldIndex,
+              target,
+              arrayValues,
+              lowerBound,
+              upperBound);
+    }
+
+    Object[] lowerBoundEncoded = encodeBound(fieldIndex, target, lowerBound);
+    String lowerBoundOp = lowerBound != null && lowerBound.isInclusive() ? ">=" : ">";
+    Object[] upperBoundEncoded = encodeBound(fieldIndex, target, upperBound);
+    String upperBoundOp = upperBound != null && upperBound.isInclusive() ? "<=" : "<";
+    Object[] notInEncoded = encodeValues(fieldIndex, target, notInValues);
+
+    SQLitePersistence.Query query =
+            generateQuery(
+                    target,
+                    fieldIndex.getIndexId(),
+                    arrayValues,
+                    lowerBoundEncoded,
+                    lowerBoundOp,
+                    upperBoundEncoded,
+                    upperBoundOp,
+                    notInEncoded);
+
+    Set<DocumentKey> result = new HashSet<>();
+    query.forEach(
+            row -> result.add(DocumentKey.fromPath(ResourcePath.fromString(row.getString(0)))));
+
+    Logger.debug(TAG, "Index scan for sub-target returned %s documents", result.size());
+    return result;
+  }
+
+  /** Returns a SQL query on 'index_entries' that unions all bounds. */
+  private SQLitePersistence.Query generateQuery(
+          Target target,
+          int indexId,
+          @Nullable List<Value> arrayValues,
+          @Nullable Object[] lowerBounds,
+          String lowerBoundOp,
+          @Nullable Object[] upperBounds,
+          String upperBoundOp,
+          @Nullable Object[] notIn) {
+    // The number of total statements we union together. This is similar to a distributed normal
+    // form, but adapted for array values. We create a single statement per value in an
+    // ARRAY_CONTAINS or ARRAY_CONTAINS_ANY filter combined with the values from the query bounds.
+    int statementCount =
+            (arrayValues != null ? arrayValues.size() : 1)
+                    * max(
+                    lowerBounds != null ? lowerBounds.length : 1,
+                    upperBounds != null ? upperBounds.length : 1);
+
+    // Build the statement. We always include the lower bound, and optionally include an array value
+    // and an upper bound.
+    StringBuilder statement = new StringBuilder();
+    statement.append("SELECT document_key, directional_value FROM index_entries ");
+    statement.append("WHERE index_id = ? AND uid = ? ");
+    if (arrayValues != null) {
+      statement.append("AND array_value = ? ");
+    }
+    if (lowerBounds != null) {
+      statement.append("AND directional_value ").append(lowerBoundOp).append(" ? ");
+    }
+    if (upperBounds != null) {
+      statement.append("AND directional_value ").append(upperBoundOp).append(" ? ");
+    }
+
+    // Create the UNION statement by repeating the above generated statement. We can then add
+    // ordering and a limit clause.
+    StringBuilder sql = repeatSequence(statement, statementCount, " UNION ");
+    sql.append(" ORDER BY directional_value, document_key ");
+    if (target.getLimit() != -1) {
+      sql.append("LIMIT ").append(target.getLimit()).append(" ");
+    }
+
+    if (notIn != null) {
+      // Wrap the statement in a NOT-IN call.
+      sql = new StringBuilder("SELECT document_key, directional_value FROM (").append(sql);
+      sql.append(") WHERE directional_value NOT IN (");
+      sql.append(repeatSequence("?", notIn.length, ", "));
+      sql.append(")");
+    }
+
+    // Fill in the bind ("question marks") variables.
+    Object[] bindArgs =
+            fillBounds(statementCount, indexId, arrayValues, lowerBounds, upperBounds, notIn);
+    return db.query(sql.toString()).binding(bindArgs);
   }
 
   /**
    * Constructs a SQL query on 'index_entries' that unions all bounds. Returns an array with SQL
    * query string as the first element, followed by binding arguments.
    */
+  /*
   private Object[] generateQueryAndBindings(
       Target target,
       int indexId,
@@ -575,6 +649,7 @@ final class SQLiteIndexManager implements IndexManager {
     result.addAll(Arrays.asList(bindArgs));
     return result.toArray();
   }
+   */
 
   /** Returns the bind arguments for all {@code statementCount} statements. */
   private Object[] fillBounds(

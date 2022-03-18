@@ -16,6 +16,7 @@ package com.google.firebase.firestore.local;
 
 import androidx.annotation.Nullable;
 import com.google.firebase.database.collection.ImmutableSortedMap;
+import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
@@ -23,6 +24,7 @@ import com.google.firebase.firestore.model.FieldIndex;
 import com.google.firebase.firestore.model.FieldIndex.IndexOffset;
 import com.google.firebase.firestore.model.ResourcePath;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -79,7 +81,9 @@ public interface IndexManager {
    * Iterates over all field indexes that are used to serve the given target, and returns the
    * minimum offset of them all. Asserts that the target can be served from index.
    */
-  IndexOffset getMinOffset(Target target);
+  //IndexOffset getMinOffset(Target target);
+
+  IndexOffset getMinOffset(List<FieldIndex> fieldIndexes);
 
   /** Returns the minimum offset for the given collection group. */
   IndexOffset getMinOffset(String collectionGroup);
@@ -95,7 +99,8 @@ public interface IndexManager {
    * Returns the documents that match the given target based on the provided index or {@code null}
    * if the query cannot be served from an index.
    */
-  Set<DocumentKey> getDocumentsMatchingTarget(Target target);
+  @Nullable
+  Set<DocumentKey> getDocumentsMatchingTarget(FieldIndex fieldIndex, Target target);
 
   /** Returns the next collection group to update. Returns {@code null} if no group exists. */
   @Nullable

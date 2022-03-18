@@ -38,6 +38,7 @@ import static org.junit.Assert.assertNull;
 
 import com.google.firebase.firestore.auth.User;
 import com.google.firebase.firestore.core.Filter;
+import com.google.firebase.firestore.core.OrderBy;
 import com.google.firebase.firestore.core.Query;
 import com.google.firebase.firestore.core.Target;
 import com.google.firebase.firestore.model.Document;
@@ -403,7 +404,7 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
     setUpSingleValueFilter();
     Query query = query("coll").filter(filter("unknown", "==", true));
     assertNull(indexManager.getFieldIndex(query.toTarget()));
-    assertNull(indexManager.getDocumentsMatchingTarget(query.toTarget()));
+//    assertNull(indexManager.getDocumentsMatchingTarget(query.toTarget()));
   }
 
   @Test
@@ -481,6 +482,39 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
     verifyResults(query);
   }
 
+  // This test fails. It shows that SQLiteIndexManager does NOT handle AND filters completely.
+  // It finds an index that can reduce the scope of the query (e.g. a single-field index), and
+  // performs a query on that.
+  @Test
+  public void andFilterFails_Fail() {
+    indexManager.addFieldIndex(fieldIndex("coll", "a", Kind.ASCENDING));
+    indexManager.addFieldIndex(fieldIndex("coll", "b", Kind.ASCENDING));
+    MutableDocument doc1 = doc("coll/1", 1, map("a", 1, "b", 0));
+    MutableDocument doc2 = doc("coll/2", 1, map("a", 2, "b", 1));
+    MutableDocument doc3 = doc("coll/3", 1, map("a", 2, "b", 2));
+    MutableDocument doc4 = doc("coll/4", 1, map("a", 1, "b", 3));
+    MutableDocument doc5 = doc("coll/5", 1, map("a", 1, "b", 1));
+    addDocs(doc1, doc2, doc3, doc4, doc5);
+
+    /*
+    // Two equalities: a==1 && b==1.
+    // In this case, SQLiteIndexManager performs a SQL query on the "A ASC" index, and finds the
+    // documents with a==2. The result is a superset of what we want (because b==1 filter has not
+    // been applied).
+    Query query2 = query("coll")
+            .filter(filter("a", "==", 2))
+            .filter(filter("b", "==", 1));
+    verifyResults(query2, "coll/2");
+    */
+
+    Query query3 = query("coll")
+            .filter(filter("a", "==", 2))
+            .filter(filter("b", "==", 1)).orderBy(orderBy("b", "asc"));
+    verifyResults(query3, "coll/2");
+
+
+  }
+
   @Test
   public void ehsan() {
     indexManager.addFieldIndex(fieldIndex("coll", "a", Kind.ASCENDING));
@@ -497,7 +531,7 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
 //    verifyResults(query1, "coll/1", "coll/2", "coll/4", "coll/5");
 
     // with one inequality: a>2 || b==1.
-    Query query2 = query("coll").filter(andFilters(filter("a", ">", 2), filter("b", "==", 1)));
+    Query query2 = query("coll").filter(orFilters(filter("a", ">", 2), filter("b", "==", 1)));
     verifyResults(query2, "coll/2", "coll/3", "coll/5");
 
     /*
@@ -944,7 +978,7 @@ public class SQLiteIndexManagerTest extends IndexManagerTestCase {
 
   private void verifyResults(Query query, String... documents) {
     Target target = query.toTarget();
-    Iterable<DocumentKey> results = indexManager.getDocumentsMatchingTarget(target);
+    Iterable<DocumentKey> results = indexManager.getDocumentsMatchingTarget(indexManager.getFieldIndex(target), target);
     assertNotNull("Target cannot be served from index.", results);
     List<DocumentKey> keys = Arrays.stream(documents).map(s -> key(s)).collect(Collectors.toList());
     assertWithMessage("Result for %s", query).that(results).containsExactlyElementsIn(keys);

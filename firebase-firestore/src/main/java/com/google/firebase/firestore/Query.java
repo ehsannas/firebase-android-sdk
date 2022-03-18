@@ -922,11 +922,17 @@ public class Query {
         } else if (value != null) {
           components.add(value);
         } else {
-          throw new IllegalArgumentException(
-              "Invalid query. You are trying to start or end a query using a document for which "
-                  + "the field '"
-                  + orderBy.getField()
-                  + "' (used as the orderBy) does not exist.");
+          // TODO(ehsann): For OR Queries, **if** we want to apply the implicit orderBy for the
+          //  first inequality to the entire query, it is possible that the document used for
+          //  startAt/endAt does NOT contain the oderBy field.
+          //  Example: (a>2 | b==1) & c=2 orderBy 'a'
+          //    --> a>2 &  c==2 orderBy 'a'
+          //        b==1 & c==2 orderBy 'a' **
+//          throw new IllegalArgumentException(
+//              "Invalid query. You are trying to start or end a query using a document for which "
+//                  + "the field '"
+//                  + orderBy.getField()
+//                  + "' (used as the orderBy) does not exist.");
         }
       }
     }

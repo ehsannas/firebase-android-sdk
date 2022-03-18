@@ -64,8 +64,16 @@ public class OrderBy {
     } else {
       Value v1 = d1.getField(field);
       Value v2 = d2.getField(field);
-      Assert.hardAssert(
-          v1 != null && v2 != null, "Trying to compare documents on fields that don't exist.");
+      // It's possible to order two document for which one or both do not have a specific field.
+      // We have chosen to first include documents without the field, followed by documents with
+      // the field.
+      if(v1 == null && v2 == null) {
+        return 0;
+      } else if (v1 == null && v2 != null) {
+        return -1;
+      } else if (v1 != null && v2 == null) {
+        return 1;
+      }
       return direction.getComparisonModifier() * Values.compare(v1, v2);
     }
   }

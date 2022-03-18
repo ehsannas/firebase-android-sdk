@@ -82,6 +82,28 @@ public class SQLiteQueryEngineTest extends QueryEngineTestCase {
   }
 
   @Test
+  public void temp() throws Exception {
+    MutableDocument doc1 = doc("coll/1", 1, map("a", 1, "b", 0));
+    MutableDocument doc2 = doc("coll/2", 1, map("a", 2, "b", 1));
+    MutableDocument doc3 = doc("coll/3", 1, map("a", 2, "b", 2));
+    MutableDocument doc4 = doc("coll/4", 1, map("a", 1, "b", 3));
+    MutableDocument doc5 = doc("coll/5", 1, map("a", 1, "b", 1));
+    addDocument(doc1, doc2, doc3, doc4, doc5);
+    indexManager.addFieldIndex(fieldIndex("coll", "a", Kind.ASCENDING));
+    indexManager.addFieldIndex(fieldIndex("coll", "b", Kind.ASCENDING));
+    indexManager.addFieldIndex(fieldIndex("coll", "b", Kind.DESCENDING));
+    int a = backfiller.backfill();
+
+    // with one inequality: a==2 || b==1.
+    Query query2 = query("coll")
+            .filter(filter("a", "==", 2))
+            .filter(filter("b", "==", 1));
+    DocumentSet result2 =
+            expectOptimizedCollectionScan(() -> runQuery(query2, SnapshotVersion.NONE));
+    assertEquals(docSet(query2.comparator(), doc2), result2);
+  }
+
+  @Test
   public void canPerformOrQueriesUsingIndexes() throws Exception {
     MutableDocument doc1 = doc("coll/1", 1, map("a", 1, "b", 0));
     MutableDocument doc2 = doc("coll/2", 1, map("a", 2, "b", 1));
@@ -98,11 +120,12 @@ public class SQLiteQueryEngineTest extends QueryEngineTestCase {
 //    DocumentSet result7 = expectOptimizedCollectionScan(() -> runQuery(query7, SnapshotVersion.NONE));
 //    assertEquals(docSet(query7.comparator(), doc1), result7);
 
+    /*
     // Two equalities: a==1 || b==1.
-//    Query query1 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", "==", 1)));
-//    DocumentSet result1 =
-//        expectOptimizedCollectionScan(() -> runQuery(query1, SnapshotVersion.NONE));
-//    assertEquals(docSet(query1.comparator(), doc1, doc2, doc4, doc5), result1);
+    Query query1 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", "==", 1)));
+    DocumentSet result1 =
+        expectOptimizedCollectionScan(() -> runQuery(query1, SnapshotVersion.NONE));
+    assertEquals(docSet(query1.comparator(), doc1, doc2, doc4, doc5), result1);
 
     // with one inequality: a>2 || b==1.
     Query query2 = query("coll").filter(orFilters(filter("a", ">", 2), filter("b", "==", 1)));
@@ -141,17 +164,21 @@ public class SQLiteQueryEngineTest extends QueryEngineTestCase {
     DocumentSet result5 =
         expectOptimizedCollectionScan(() -> runQuery(query5, SnapshotVersion.NONE));
     assertEquals(docSet(query5.comparator(), doc3), result5);
+    */
 
-    /*
-    // Test with limits: (a==1) || (b > 0) LIMIT 2
-    // (a==1) results in 3 docs (doc1, doc4, doc5) --> after limit: (doc1, doc4)
-    // (b>0)  results in 4 docs (doc2, doc3, doc4, doc5) --> after limit: (doc2, doc3)
-    // Union of the results: (doc1, doc4, doc2, doc3) --> after ORDER BY and LIMIT: (doc1, doc2)
-    Query query6 = query("coll").filter(orFilters(filter("a", "==", 1), filter("b", ">", 0))).limitToFirst(2);
+    // Test with limits: (a==1) || (b > 0) LIMIT 3
+    // (a==1) results in 3 docs (doc1, doc4, doc5) --> after limit: (doc1, doc4, doc5)
+    // (b>0)  results in 4 docs (doc2, doc3, doc4, doc5) --> after limit: (doc2, doc3, doc4)
+    // Union of the results: (doc1, doc4, doc5, doc2, doc3, doc 4)
+    // After ORDER BY and LIMIT: (doc1, doc2, doc5)
+    Query query6 = query("coll")
+            .filter(orFilters(filter("a", "==", 1), filter("b", ">", 0)))
+            .limitToFirst(3);
     DocumentSet result6 =
             expectOptimizedCollectionScan(() -> runQuery(query6, SnapshotVersion.NONE));
-    assertEquals(docSet(query6.comparator(), doc1, doc2), result6);
+    assertEquals(docSet(query6.comparator(), doc1, doc2, doc5), result6);
 
+    /*
     // Test with limits: (a==1) || (b > 0) ORDER BY b LIMIT 2
     // (a==1 order by b desc) --> (doc4, doc5, doc1) --> after limit: (doc4, doc5)
     // (b>0  order by b desc) --> (doc4, doc3, doc2, doc5) --> after limit: (doc4, doc3)
